@@ -1,10 +1,6 @@
-// DeepRead Content Script
 import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
 import type { ExtractedContent, ContentType } from '@/types';
-import type { ExtractContentResponse } from '@/types/messages';
-
-console.log('DeepRead content script loaded');
 
 /**
  * 检测内容类型
@@ -62,6 +58,7 @@ function detectContentType(url: string, doc: Document): { type: ContentType; con
  * 检测语言
  */
 function detectLanguage(text: string): string {
+  // 简单的中文检测
   const chineseRegex = /[\u4e00-\u9fa5]/g;
   const chineseMatches = text.match(chineseRegex) || [];
   const chineseRatio = chineseMatches.length / text.length;
@@ -77,6 +74,7 @@ function detectLanguage(text: string): string {
  * 计算预计阅读时间（分钟）
  */
 function calculateReadTime(wordCount: number, language: string): number {
+  // 中文约 400 字/分钟，英文约 200 词/分钟
   const wordsPerMinute = language === 'zh' ? 400 : 200;
   return Math.ceil(wordCount / wordsPerMinute);
 }
@@ -86,20 +84,19 @@ function calculateReadTime(wordCount: number, language: string): number {
  */
 function countWords(text: string, language: string): number {
   if (language === 'zh') {
+    // 中文按字符计数
     const chineseChars = text.match(/[\u4e00-\u9fa5]/g) || [];
     const englishWords = text.match(/[a-zA-Z]+/g) || [];
     return chineseChars.length + englishWords.length;
   }
+  // 英文按单词计数
   return text.split(/\s+/).filter(w => w.length > 0).length;
 }
 
 /**
  * 提取页面内容
  */
-function extractContent(): ExtractedContent {
-  const url = window.location.href;
-  const doc = document;
-  
+export function extractContent(doc: Document, url: string): ExtractedContent {
   // 克隆文档以避免修改原始 DOM
   const clonedDoc = doc.cloneNode(true) as Document;
   
@@ -156,26 +153,3 @@ function extractContent(): ExtractedContent {
     },
   };
 }
-
-// 监听消息
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === 'EXTRACT_CONTENT') {
-    try {
-      const content = extractContent();
-      const response: ExtractContentResponse = {
-        type: 'CONTENT_EXTRACTED',
-        data: content,
-      };
-      sendResponse(response);
-    } catch (error) {
-      const response: ExtractContentResponse = {
-        type: 'EXTRACTION_ERROR',
-        error: error instanceof Error ? error.message : '未知错误',
-      };
-      sendResponse(response);
-    }
-  }
-  return false;
-});
-
-export {};
