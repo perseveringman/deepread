@@ -35,5 +35,28 @@
   ],
   "host_permissions": [
     "<all_urls>"
-  ]
+  ],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+D",
+        "mac": "Alt+D"
+      },
+      "description": "打开 DeepRead 侧边栏"
+    },
+    "extract-article": {
+      "suggested_key": {
+        "default": "Alt+E",
+        "mac": "Alt+E"
+      },
+      "description": "提取当前页面文章"
+    },
+    "generate-summary": {
+      "suggested_key": {
+        "default": "Alt+S",
+        "mac": "Alt+S"
+      },
+      "description": "生成文章摘要"
+    }
+  }
 }

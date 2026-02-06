@@ -8,6 +8,31 @@ chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => console.error(error));
 
+// 处理快捷键命令
+chrome.commands.onCommand.addListener(async (command) => {
+  console.log('Command received:', command);
+  
+  // 获取当前窗口
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id || !tab.windowId) return;
+  
+  if (command === 'extract-article' || command === 'generate-summary') {
+    // 确保侧边栏已打开
+    await chrome.sidePanel.open({ windowId: tab.windowId });
+    
+    // 延迟一下确保侧边栏加载完成
+    setTimeout(() => {
+      // 发送命令给侧边栏
+      chrome.runtime.sendMessage({ 
+        type: 'COMMAND', 
+        command: command 
+      }).catch(() => {
+        // 侧边栏可能还没准备好接收消息，忽略错误
+      });
+    }, 300);
+  }
+});
+
 // OpenRouter API 代理
 async function proxyOpenRouterRequest(
   apiKey: string,

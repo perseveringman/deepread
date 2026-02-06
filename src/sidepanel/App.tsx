@@ -51,6 +51,32 @@ function App() {
     refreshCount();
   }, [refreshCount]);
 
+  // 监听快捷键命令
+  useEffect(() => {
+    const handleCommand = (message: { type: string; command: string }) => {
+      if (message.type === 'COMMAND') {
+        if (message.command === 'extract-article') {
+          extractContent();
+        } else if (message.command === 'generate-summary') {
+          if (content && apiKey) {
+            generateSummary(apiKey, model, language);
+          } else if (!content) {
+            // 如果没有内容，先提取
+            extractContent();
+          } else {
+            // 没有 API Key，打开设置
+            setShowSettings(true);
+          }
+        }
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleCommand);
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleCommand);
+    };
+  }, [content, apiKey, model, language, extractContent, generateSummary]);
+
   // 获取文章正文预览（纯文本，前500字）
   const getContentPreview = () => {
     if (!content) return '';
