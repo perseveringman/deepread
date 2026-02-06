@@ -61,22 +61,43 @@ export async function callOpenRouter(
   apiKey: string,
   request: OpenRouterRequest
 ): Promise<OpenRouterResponse> {
-  const response = await fetch(OPENROUTER_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://deepread.app',
-      'X-Title': 'DeepRead',
-    },
-    body: JSON.stringify({
-      ...request,
-      stream: false,
-    }),
-  });
+  let response: Response;
+  
+  try {
+    response = await fetch(OPENROUTER_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': chrome.runtime.getURL(''),
+        'X-Title': 'DeepRead',
+      },
+      body: JSON.stringify({
+        ...request,
+        stream: false,
+      }),
+    });
+  } catch (error) {
+    // 网络错误
+    console.error('OpenRouter fetch error:', error);
+    throw new OpenRouterAPIError(
+      '网络连接失败，请检查网络或 API 地址',
+      'network_error',
+      0
+    );
+  }
 
   if (!response.ok) {
-    const errorData = await response.json() as OpenRouterError;
+    let errorData: OpenRouterError;
+    try {
+      errorData = await response.json() as OpenRouterError;
+    } catch {
+      throw new OpenRouterAPIError(
+        `HTTP ${response.status}: ${response.statusText}`,
+        'unknown',
+        response.status
+      );
+    }
     throw new OpenRouterAPIError(
       errorData.error?.message || `HTTP ${response.status}`,
       errorData.error?.code || 'unknown',
@@ -94,22 +115,42 @@ export async function* streamOpenRouter(
   apiKey: string,
   request: OpenRouterRequest
 ): AsyncGenerator<string, void, unknown> {
-  const response = await fetch(OPENROUTER_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://deepread.app',
-      'X-Title': 'DeepRead',
-    },
-    body: JSON.stringify({
-      ...request,
-      stream: true,
-    }),
-  });
+  let response: Response;
+  
+  try {
+    response = await fetch(OPENROUTER_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': chrome.runtime.getURL(''),
+        'X-Title': 'DeepRead',
+      },
+      body: JSON.stringify({
+        ...request,
+        stream: true,
+      }),
+    });
+  } catch (error) {
+    console.error('OpenRouter stream fetch error:', error);
+    throw new OpenRouterAPIError(
+      '网络连接失败，请检查网络或 API 地址',
+      'network_error',
+      0
+    );
+  }
 
   if (!response.ok) {
-    const errorData = await response.json() as OpenRouterError;
+    let errorData: OpenRouterError;
+    try {
+      errorData = await response.json() as OpenRouterError;
+    } catch {
+      throw new OpenRouterAPIError(
+        `HTTP ${response.status}: ${response.statusText}`,
+        'unknown',
+        response.status
+      );
+    }
     throw new OpenRouterAPIError(
       errorData.error?.message || `HTTP ${response.status}`,
       errorData.error?.code || 'unknown',
