@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useArticleStore } from '@/store/articleStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useHistoryStore } from '@/store/historyStore';
 import { Settings } from '@/components/Settings';
 import { Chat } from '@/components/Chat';
 import { Export } from '@/components/Export';
+import { History } from '@/components/History';
+import type { ArticleRecord } from '@/db';
 
-type TabType = 'summary' | 'chat';
+type TabType = 'summary' | 'chat' | 'history';
 
 function App() {
   const [showSettings, setShowSettings] = useState(false);
@@ -22,6 +25,7 @@ function App() {
     chatMessages,
     extractContent, 
     generateSummary,
+    loadFromHistory,
     clearAll 
   } = useArticleStore();
 
@@ -33,12 +37,19 @@ function App() {
     loadSettings,
   } = useSettingsStore();
 
+  const { totalCount, refreshCount } = useHistoryStore();
+
   // 加载设置
   useEffect(() => {
     if (!isLoaded) {
       loadSettings();
     }
   }, [isLoaded, loadSettings]);
+
+  // 加载历史记录数量
+  useEffect(() => {
+    refreshCount();
+  }, [refreshCount]);
 
   // 获取文章正文预览（纯文本，前500字）
   const getContentPreview = () => {
@@ -55,6 +66,11 @@ function App() {
       return;
     }
     generateSummary(apiKey, model, language);
+  };
+
+  const handleSelectHistory = (record: ArticleRecord) => {
+    loadFromHistory(record);
+    setActiveTab('summary');
   };
 
   // 设置页面
@@ -150,35 +166,48 @@ function App() {
         )}
 
         {/* 标签页切换 */}
-        {content && (
-          <div className="flex border-b border-gray-200 mb-4">
-            <button
-              onClick={() => setActiveTab('summary')}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'summary'
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              摘要
-            </button>
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors relative ${
-                activeTab === 'chat'
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              对话
-              {chatMessages.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary-600 text-white text-xs rounded-full flex items-center justify-center">
-                  {chatMessages.length}
-                </span>
-              )}
-            </button>
-          </div>
-        )}
+        <div className="flex border-b border-gray-200 mb-4">
+          <button
+            onClick={() => setActiveTab('summary')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'summary'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            摘要
+          </button>
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors relative ${
+              activeTab === 'chat'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            对话
+            {chatMessages.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary-600 text-white text-xs rounded-full flex items-center justify-center">
+                {chatMessages.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors relative ${
+              activeTab === 'history'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            历史
+            {totalCount > 0 && (
+              <span className="ml-1 text-xs text-gray-400">
+                ({totalCount})
+              </span>
+            )}
+          </button>
+        </div>
 
         {/* 内容区域 */}
         <div className="flex-1 overflow-y-auto">
@@ -365,8 +394,21 @@ function App() {
           )}
 
           {/* 对话标签页 */}
-          {activeTab === 'chat' && content && (
-            <Chat />
+          {activeTab === 'chat' && (
+            content ? (
+              <Chat />
+            ) : (
+              <div className="card p-4">
+                <p className="text-gray-600 text-sm">
+                  请先提取文章内容，然后开始对话。
+                </p>
+              </div>
+            )
+          )}
+
+          {/* 历史标签页 */}
+          {activeTab === 'history' && (
+            <History onSelect={handleSelectHistory} />
           )}
         </div>
       </main>

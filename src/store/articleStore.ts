@@ -4,8 +4,12 @@ import type { ExtractContentResponse } from '@/types/messages';
 import { generateSummary } from '@/services/summarizer';
 import { sendChatMessage, createUserMessage } from '@/services/chat';
 import { OpenRouterAPIError } from '@/services/openrouter';
+import { articleDB, type ArticleRecord } from '@/db';
 
 interface ArticleState {
+  // 当前文章 URL
+  currentUrl: string | null;
+  
   // 内容提取
   content: ExtractedContent | null;
   extracting: boolean;
@@ -25,6 +29,7 @@ interface ArticleState {
   extractContent: () => Promise<void>;
   generateSummary: (apiKey: string, model: string, language: 'zh' | 'en' | 'auto') => Promise<void>;
   sendMessage: (apiKey: string, model: string, message: string, language: 'zh' | 'en' | 'auto') => Promise<void>;
+  loadFromHistory: (record: ArticleRecord) => void;
   clearContent: () => void;
   clearSummary: () => void;
   clearChat: () => void;
@@ -33,6 +38,7 @@ interface ArticleState {
 
 export const useArticleStore = create<ArticleState>((set, get) => ({
   // 初始状态
+  currentUrl: null,
   content: null,
   extracting: false,
   extractError: null,
@@ -54,7 +60,36 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
       });
       
       if (response.type === 'CONTENT_EXTRACTED') {
-        set({ content: response.data, extracting: false, extractError: null });
+        const content = response.data;
+        const url = content.metadata.source;
+        
+        // 检查是否有历史记录
+        const existingRecord = await articleDB.getByUrl(url);
+        
+        if (existingRecord) {
+          // 恢复历史记录
+          set({ 
+            currentUrl: url,
+            content: existingRecord.extractedContent, 
+            summary: existingRecord.summary || null,
+            chatMessages: existingRecord.chatMessages || [],
+            extracting: false, 
+            extractError: null 
+          });
+        } else {
+          // 新文章，保存到数据库
+          set({ 
+            currentUrl: url,
+            content, 
+            summary: null,
+            chatMessages: [],
+            extracting: false, 
+            extractError: null 
+          });
+          
+          // 异步保存到数据库
+          articleDB.save(url, content).catch(console.error);
+        }
       } else {
         set({ content: null, extracting: false, extractError: response.error });
       }
@@ -68,7 +103,7 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
   },
   
   generateSummary: async (apiKey: string, model: string, language: 'zh' | 'en' | 'auto') => {
-    const { content } = get();
+    const { content, currentUrl } = get();
     
     if (!content) {
       set({ summaryError: '请先提取文章内容' });
@@ -85,6 +120,11 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
     try {
       const summary = await generateSummary(apiKey, model, content, language);
       set({ summary, summarizing: false, summaryError: null });
+      
+      // 保存摘要到数据库
+      if (currentUrl) {
+        articleDB.updateSummary(currentUrl, summary).catch(console.error);
+      }
     } catch (error) {
       let errorMessage = '生成摘要失败';
       
@@ -103,7 +143,7 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
   },
   
   sendMessage: async (apiKey: string, model: string, message: string, language: 'zh' | 'en' | 'auto') => {
-    const { content, chatMessages } = get();
+    const { content, chatMessages, currentUrl } = get();
     
     if (!content) {
       set({ chatError: '请先提取文章内容' });
@@ -121,8 +161,9 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
     
     // 添加用户消息
     const userMessage = createUserMessage(message.trim());
+    const newMessages = [...chatMessages, userMessage];
     set({ 
-      chatMessages: [...chatMessages, userMessage],
+      chatMessages: newMessages,
       chatLoading: true, 
       chatError: null 
     });
@@ -132,16 +173,22 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
         apiKey,
         model,
         content,
-        [...chatMessages, userMessage],
+        newMessages,
         message.trim(),
         language
       );
       
-      set(state => ({ 
-        chatMessages: [...state.chatMessages, assistantMessage],
+      const updatedMessages = [...newMessages, assistantMessage];
+      set({ 
+        chatMessages: updatedMessages,
         chatLoading: false, 
         chatError: null 
-      }));
+      });
+      
+      // 保存对话到数据库
+      if (currentUrl) {
+        articleDB.updateChatMessages(currentUrl, updatedMessages).catch(console.error);
+      }
     } catch (error) {
       let errorMessage = '发送消息失败';
       
@@ -158,6 +205,18 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
     }
   },
   
+  loadFromHistory: (record: ArticleRecord) => {
+    set({
+      currentUrl: record.url,
+      content: record.extractedContent,
+      summary: record.summary || null,
+      chatMessages: record.chatMessages || [],
+      extractError: null,
+      summaryError: null,
+      chatError: null,
+    });
+  },
+  
   clearContent: () => {
     set({ content: null, extractError: null });
   },
@@ -167,11 +226,18 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
   },
   
   clearChat: () => {
+    const { currentUrl } = get();
     set({ chatMessages: [], chatError: null });
+    
+    // 同步清空数据库中的对话
+    if (currentUrl) {
+      articleDB.updateChatMessages(currentUrl, []).catch(console.error);
+    }
   },
   
   clearAll: () => {
     set({ 
+      currentUrl: null,
       content: null, 
       extractError: null, 
       summary: null, 
