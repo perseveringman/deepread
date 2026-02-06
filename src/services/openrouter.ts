@@ -106,6 +106,47 @@ export async function callOpenRouter(
 }
 
 /**
+ * 流式调用 OpenRouter API
+ */
+export function streamOpenRouter(
+  apiKey: string,
+  request: OpenRouterRequest,
+  onChunk: (chunk: string) => void,
+  onDone: () => void,
+  onError: (error: string) => void
+): () => void {
+  const port = chrome.runtime.connect({ name: 'openrouter-stream' });
+  
+  port.onMessage.addListener((message) => {
+    if (message.type === 'chunk') {
+      onChunk(message.content);
+    } else if (message.type === 'done') {
+      onDone();
+      port.disconnect();
+    } else if (message.type === 'error') {
+      onError(message.error);
+      port.disconnect();
+    }
+  });
+  
+  port.postMessage({
+    type: 'start',
+    apiKey,
+    model: request.model,
+    messages: request.messages,
+    options: {
+      temperature: request.temperature,
+      max_tokens: request.max_tokens,
+    },
+  });
+  
+  // 返回取消函数
+  return () => {
+    port.disconnect();
+  };
+}
+
+/**
  * OpenRouter API 错误
  */
 export class OpenRouterAPIError extends Error {

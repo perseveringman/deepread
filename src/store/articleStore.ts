@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { ExtractedContent, SmartSummary, ChatMessage } from '@/types';
 import type { ExtractContentResponse } from '@/types/messages';
 import { generateSummary } from '@/services/summarizer';
-import { sendChatMessage, createUserMessage } from '@/services/chat';
+import { sendChatMessageStream, createUserMessage, createAssistantMessage } from '@/services/chat';
 import { OpenRouterAPIError } from '@/services/openrouter';
 import { articleDB, type ArticleRecord } from '@/db';
 
@@ -24,11 +24,13 @@ interface ArticleState {
   chatMessages: ChatMessage[];
   chatLoading: boolean;
   chatError: string | null;
+  streamingContent: string | null;  // 流式响应中的内容
+  cancelStream: (() => void) | null;  // 取消流式响应的函数
   
   // 操作
   extractContent: () => Promise<void>;
   generateSummary: (apiKey: string, model: string, language: 'zh' | 'en' | 'auto') => Promise<void>;
-  sendMessage: (apiKey: string, model: string, message: string, language: 'zh' | 'en' | 'auto') => Promise<void>;
+  sendMessage: (apiKey: string, model: string, message: string, language: 'zh' | 'en' | 'auto') => void;
   loadFromHistory: (record: ArticleRecord) => void;
   clearContent: () => void;
   clearSummary: () => void;
@@ -48,6 +50,8 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
   chatMessages: [],
   chatLoading: false,
   chatError: null,
+  streamingContent: null,
+  cancelStream: null,
   
   extractContent: async () => {
     set({ extracting: true, extractError: null });
@@ -142,8 +146,13 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
     }
   },
   
-  sendMessage: async (apiKey: string, model: string, message: string, language: 'zh' | 'en' | 'auto') => {
-    const { content, chatMessages, currentUrl } = get();
+  sendMessage: (apiKey: string, model: string, message: string, language: 'zh' | 'en' | 'auto') => {
+    const { content, chatMessages, cancelStream } = get();
+    
+    // 取消之前的流式请求
+    if (cancelStream) {
+      cancelStream();
+    }
     
     if (!content) {
       set({ chatError: '请先提取文章内容' });
@@ -162,50 +171,82 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
     // 添加用户消息
     const userMessage = createUserMessage(message.trim());
     const newMessages = [...chatMessages, userMessage];
+    
+    // 添加一个空的助手消息占位
+    const placeholderMessage = createAssistantMessage('');
+    const messagesWithPlaceholder = [...newMessages, placeholderMessage];
+    
     set({ 
-      chatMessages: newMessages,
+      chatMessages: messagesWithPlaceholder,
       chatLoading: true, 
-      chatError: null 
+      chatError: null,
+      streamingContent: '',
     });
     
-    try {
-      const assistantMessage = await sendChatMessage(
-        apiKey,
-        model,
-        content,
-        newMessages,
-        message.trim(),
-        language
-      );
-      
-      const updatedMessages = [...newMessages, assistantMessage];
-      set({ 
-        chatMessages: updatedMessages,
-        chatLoading: false, 
-        chatError: null 
-      });
-      
-      // 保存对话到数据库
-      if (currentUrl) {
-        articleDB.updateChatMessages(currentUrl, updatedMessages).catch(console.error);
+    // 发起流式请求
+    const cancel = sendChatMessageStream(
+      apiKey,
+      model,
+      content,
+      newMessages,
+      message.trim(),
+      language,
+      // onChunk
+      (_chunk, fullContent) => {
+        set({ streamingContent: fullContent });
+        // 更新占位消息的内容
+        const { chatMessages } = get();
+        const updatedMessages = [...chatMessages];
+        updatedMessages[updatedMessages.length - 1] = {
+          ...updatedMessages[updatedMessages.length - 1],
+          content: fullContent,
+        };
+        set({ chatMessages: updatedMessages });
+      },
+      // onDone
+      (finalMessage) => {
+        const { chatMessages, currentUrl } = get();
+        const updatedMessages = [...chatMessages];
+        updatedMessages[updatedMessages.length - 1] = finalMessage;
+        
+        set({ 
+          chatMessages: updatedMessages,
+          chatLoading: false, 
+          chatError: null,
+          streamingContent: null,
+          cancelStream: null,
+        });
+        
+        // 保存对话到数据库
+        if (currentUrl) {
+          articleDB.updateChatMessages(currentUrl, updatedMessages).catch(console.error);
+        }
+      },
+      // onError
+      (error) => {
+        // 移除占位消息
+        const { chatMessages } = get();
+        const messagesWithoutPlaceholder = chatMessages.slice(0, -1);
+        
+        set({ 
+          chatMessages: messagesWithoutPlaceholder,
+          chatLoading: false, 
+          chatError: error,
+          streamingContent: null,
+          cancelStream: null,
+        });
       }
-    } catch (error) {
-      let errorMessage = '发送消息失败';
-      
-      if (error instanceof OpenRouterAPIError) {
-        errorMessage = error.userFriendlyMessage;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
-      set({ 
-        chatLoading: false, 
-        chatError: errorMessage 
-      });
-    }
+    );
+    
+    set({ cancelStream: cancel });
   },
   
   loadFromHistory: (record: ArticleRecord) => {
+    const { cancelStream } = get();
+    if (cancelStream) {
+      cancelStream();
+    }
+    
     set({
       currentUrl: record.url,
       content: record.extractedContent,
@@ -214,6 +255,8 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
       extractError: null,
       summaryError: null,
       chatError: null,
+      streamingContent: null,
+      cancelStream: null,
     });
   },
   
@@ -226,8 +269,18 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
   },
   
   clearChat: () => {
-    const { currentUrl } = get();
-    set({ chatMessages: [], chatError: null });
+    const { currentUrl, cancelStream } = get();
+    
+    if (cancelStream) {
+      cancelStream();
+    }
+    
+    set({ 
+      chatMessages: [], 
+      chatError: null,
+      streamingContent: null,
+      cancelStream: null,
+    });
     
     // 同步清空数据库中的对话
     if (currentUrl) {
@@ -236,6 +289,11 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
   },
   
   clearAll: () => {
+    const { cancelStream } = get();
+    if (cancelStream) {
+      cancelStream();
+    }
+    
     set({ 
       currentUrl: null,
       content: null, 
@@ -244,6 +302,8 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
       summaryError: null,
       chatMessages: [],
       chatError: null,
+      streamingContent: null,
+      cancelStream: null,
     });
   },
 }));

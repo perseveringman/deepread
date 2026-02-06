@@ -2,7 +2,7 @@
  * 对话问答服务
  */
 
-import { callOpenRouter, type OpenRouterMessage } from './openrouter';
+import { callOpenRouter, streamOpenRouter, type OpenRouterMessage } from './openrouter';
 import type { ExtractedContent, ChatMessage } from '@/types';
 
 /**
@@ -69,7 +69,7 @@ function generateId(): string {
 }
 
 /**
- * 发送消息并获取回复
+ * 发送消息并获取回复（非流式）
  */
 export async function sendChatMessage(
   apiKey: string,
@@ -115,12 +115,80 @@ export async function sendChatMessage(
 }
 
 /**
+ * 流式发送消息
+ */
+export function sendChatMessageStream(
+  apiKey: string,
+  model: string,
+  content: ExtractedContent,
+  chatHistory: ChatMessage[],
+  userMessage: string,
+  language: 'zh' | 'en' | 'auto' = 'auto',
+  onChunk: (chunk: string, fullContent: string) => void,
+  onDone: (message: ChatMessage) => void,
+  onError: (error: string) => void
+): () => void {
+  const systemPrompt = buildChatSystemPrompt(content, language);
+  
+  // 添加用户消息到历史
+  const updatedHistory: ChatMessage[] = [
+    ...chatHistory,
+    {
+      id: generateId(),
+      role: 'user',
+      content: userMessage,
+      timestamp: Date.now(),
+    },
+  ];
+
+  const messages = convertToOpenRouterMessages(systemPrompt, updatedHistory);
+  let fullContent = '';
+  const messageId = generateId();
+  const timestamp = Date.now();
+
+  return streamOpenRouter(
+    apiKey,
+    {
+      model,
+      messages,
+      temperature: 0.7,
+      max_tokens: 1500,
+    },
+    (chunk) => {
+      fullContent += chunk;
+      onChunk(chunk, fullContent);
+    },
+    () => {
+      onDone({
+        id: messageId,
+        role: 'assistant',
+        content: fullContent,
+        timestamp,
+      });
+    },
+    onError
+  );
+}
+
+/**
  * 创建用户消息对象
  */
 export function createUserMessage(content: string): ChatMessage {
   return {
     id: generateId(),
     role: 'user',
+    content,
+    timestamp: Date.now(),
+  };
+}
+
+/**
+ * 创建助手消息对象
+ */
+export function createAssistantMessage(content: string): ChatMessage {
+  return {
+    id: generateId(),
+    role: 'assistant',
     content,
     timestamp: Date.now(),
   };

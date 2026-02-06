@@ -140,6 +140,108 @@ async function proxyOpenRouterRequest(
   }
 }
 
+// 流式 OpenRouter API 代理
+async function proxyOpenRouterStreamRequest(
+  port: chrome.runtime.Port,
+  apiKey: string,
+  model: string,
+  messages: Array<{ role: string; content: string }>,
+  options?: { temperature?: number; max_tokens?: number }
+): Promise<void> {
+  const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+  
+  try {
+    console.log('Proxying OpenRouter stream request:', { model, messageCount: messages.length });
+    
+    const response = await fetch(OPENROUTER_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://deepread.app',
+        'X-Title': 'DeepRead',
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.max_tokens ?? 4096,
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error?.message || errorMessage;
+      } catch {
+        // ignore
+      }
+      port.postMessage({ type: 'error', error: errorMessage });
+      return;
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      port.postMessage({ type: 'error', error: '无法获取响应流' });
+      return;
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            port.postMessage({ type: 'done' });
+            return;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              port.postMessage({ type: 'chunk', content });
+            }
+          } catch {
+            // ignore parse error
+          }
+        }
+      }
+    }
+
+    port.postMessage({ type: 'done' });
+  } catch (error) {
+    console.error('OpenRouter stream fetch error:', error);
+    port.postMessage({ 
+      type: 'error', 
+      error: error instanceof Error ? error.message : '网络请求失败' 
+    });
+  }
+}
+
+// 处理流式请求的长连接
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'openrouter-stream') {
+    port.onMessage.addListener((message) => {
+      if (message.type === 'start') {
+        const { apiKey, model, messages, options } = message;
+        proxyOpenRouterStreamRequest(port, apiKey, model, messages, options);
+      }
+    });
+  }
+});
+
 // Listen for messages from side panel
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   console.log('Background received message:', message.type);
