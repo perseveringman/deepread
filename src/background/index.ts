@@ -242,35 +242,83 @@ chrome.runtime.onConnect.addListener((port) => {
   }
 });
 
+// 确保 content script 已注入
+async function ensureContentScriptInjected(tabId: number): Promise<boolean> {
+  try {
+    // 先尝试 ping content script
+    const response = await chrome.tabs.sendMessage(tabId, { type: 'PING' }).catch(() => null);
+    if (response === 'PONG') {
+      return true;
+    }
+    
+    // 如果没有响应，尝试注入 content script
+    console.log('Content script not found, injecting...');
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['src/content/index.ts'],
+    });
+    
+    // 等待一下让 content script 初始化
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return true;
+  } catch (error) {
+    console.error('Failed to inject content script:', error);
+    return false;
+  }
+}
+
 // Listen for messages from side panel
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   console.log('Background received message:', message.type);
   
   if (message.type === 'EXTRACT_CONTENT') {
     // Forward to content script of active tab
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tabId = tabs[0]?.id;
-      if (!tabId) {
-        const errorResponse: ExtractContentResponse = {
-          type: 'EXTRACTION_ERROR',
-          error: '无法获取当前标签页',
-        };
-        sendResponse(errorResponse);
-        return;
-      }
-      
-      chrome.tabs.sendMessage(tabId, { type: 'EXTRACT_CONTENT' }, (response) => {
-        if (chrome.runtime.lastError) {
-          const errorResponse: ExtractContentResponse = {
+    (async () => {
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        const tab = tabs[0];
+        const tabId = tab?.id;
+        
+        if (!tabId) {
+          sendResponse({
             type: 'EXTRACTION_ERROR',
-            error: chrome.runtime.lastError.message || '无法与页面通信',
-          };
-          sendResponse(errorResponse);
-        } else {
-          sendResponse(response);
+            error: '无法获取当前标签页',
+          } as ExtractContentResponse);
+          return;
         }
-      });
-    });
+        
+        // 检查是否是特殊页面
+        const url = tab.url || '';
+        if (url.startsWith('chrome://') || url.startsWith('chrome-extension://') || 
+            url.startsWith('about:') || url.startsWith('edge://') || url === '') {
+          sendResponse({
+            type: 'EXTRACTION_ERROR',
+            error: '无法在此页面提取内容 (浏览器内部页面)',
+          } as ExtractContentResponse);
+          return;
+        }
+        
+        // 确保 content script 已注入
+        const injected = await ensureContentScriptInjected(tabId);
+        if (!injected) {
+          sendResponse({
+            type: 'EXTRACTION_ERROR',
+            error: '无法注入内容脚本，请刷新页面后重试',
+          } as ExtractContentResponse);
+          return;
+        }
+        
+        // 发送提取请求
+        const response = await chrome.tabs.sendMessage(tabId, { type: 'EXTRACT_CONTENT' });
+        sendResponse(response);
+      } catch (error) {
+        console.error('Extract content error:', error);
+        sendResponse({
+          type: 'EXTRACTION_ERROR',
+          error: error instanceof Error ? error.message : '提取内容失败，请刷新页面后重试',
+        } as ExtractContentResponse);
+      }
+    })();
     return true; // Keep channel open for async response
   }
   

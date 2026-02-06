@@ -161,6 +161,12 @@ function extractContent(): ExtractedContent {
 
 // 监听消息
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  // PING 用于检测 content script 是否已加载
+  if (message.type === 'PING') {
+    sendResponse('PONG');
+    return false;
+  }
+  
   if (message.type === 'EXTRACT_CONTENT') {
     try {
       const content = extractContent();
