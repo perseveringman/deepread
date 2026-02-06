@@ -1,5 +1,3 @@
-import React from 'react';
-
 function App() {
   const openSidePanel = () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {

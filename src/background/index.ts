@@ -7,7 +7,7 @@ chrome.sidePanel
   .catch((error) => console.error(error));
 
 // Listen for messages from content script and side panel
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   console.log('Background received message:', message);
   
   if (message.type === 'EXTRACT_CONTENT') {

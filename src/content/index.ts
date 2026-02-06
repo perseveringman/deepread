@@ -2,7 +2,7 @@
 console.log('DeepRead content script loaded');
 
 // Listen for messages from background
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'GET_CONTENT') {
     const content = {
       url: window.location.href,
