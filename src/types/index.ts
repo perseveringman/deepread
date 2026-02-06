@@ -96,12 +96,15 @@ export interface AIProvider {
 }
 
 // Settings Types
+export type UILanguage = 'zh' | 'en' | 'system';
+
 export interface Settings {
   provider: string;
   apiKey: string;
   model: string;
   defaultReadingLevel: 'quick' | 'core' | 'detailed';
   language: 'zh' | 'en' | 'auto';
+  uiLanguage: UILanguage;
 }
 
 // Storage Types

@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS: Settings = {
   model: 'openai/gpt-4o-mini',
   defaultReadingLevel: 'core',
   language: 'auto',
+  uiLanguage: 'system',
 };
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -44,6 +45,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       model: newSettings.model ?? currentState.model,
       defaultReadingLevel: newSettings.defaultReadingLevel ?? currentState.defaultReadingLevel,
       language: newSettings.language ?? currentState.language,
+      uiLanguage: newSettings.uiLanguage ?? currentState.uiLanguage,
     };
 
     try {

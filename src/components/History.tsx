@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useHistoryStore } from '@/store/historyStore';
+import { useI18n } from '@/i18n';
 import type { ArticleRecord } from '@/db';
 
 interface HistoryProps {
@@ -7,6 +8,7 @@ interface HistoryProps {
 }
 
 export function History({ onSelect }: HistoryProps) {
+  const { t, format } = useI18n();
   const {
     records,
     loading,
@@ -39,7 +41,7 @@ export function History({ onSelect }: HistoryProps) {
 
   const handleDelete = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    if (window.confirm('确定删除这条记录吗？')) {
+    if (window.confirm(t.common.confirm + '?')) {
       await deleteRecord(id);
     }
   };
@@ -65,7 +67,7 @@ export function History({ onSelect }: HistoryProps) {
     }
     // 昨天
     if (diff < 48 * 60 * 60 * 1000) {
-      return '昨天';
+      return 'Yesterday';
     }
     // 本周
     if (diff < 7 * 24 * 60 * 60 * 1000) {
@@ -76,15 +78,8 @@ export function History({ onSelect }: HistoryProps) {
   };
 
   const getTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      paper: '论文',
-      blog: '博客',
-      news: '新闻',
-      twitter: '推文',
-      documentation: '文档',
-      generic: '文章',
-    };
-    return labels[type] || '文章';
+    const types = t.history.types as Record<string, string>;
+    return types[type] || types.generic;
   };
 
   return (
@@ -96,7 +91,7 @@ export function History({ onSelect }: HistoryProps) {
             type="text"
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
-            placeholder="搜索历史记录..."
+            placeholder={t.history.searchPlaceholder}
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
           <svg
@@ -117,7 +112,7 @@ export function History({ onSelect }: HistoryProps) {
 
       {/* 统计和操作 */}
       <div className="flex items-center justify-between mb-3 text-xs text-gray-500">
-        <span>共 {totalCount} 条记录</span>
+        <span>{format(t.history.totalRecords, { count: totalCount })}</span>
         {totalCount > 0 && (
           <button
             onClick={handleClearAll}
@@ -127,7 +122,7 @@ export function History({ onSelect }: HistoryProps) {
                 : 'hover:bg-gray-100 text-gray-500'
             }`}
           >
-            {confirmClear ? '再次点击确认清空' : '清空全部'}
+            {confirmClear ? t.history.confirmClear : t.history.clearAll}
           </button>
         )}
       </div>
@@ -142,7 +137,7 @@ export function History({ onSelect }: HistoryProps) {
       {/* 加载状态 */}
       {loading && (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-gray-500 text-sm">加载中...</div>
+          <div className="text-gray-500 text-sm">{t.common.loading}</div>
         </div>
       )}
 
@@ -163,7 +158,7 @@ export function History({ onSelect }: HistoryProps) {
             />
           </svg>
           <p className="text-sm">
-            {searchQuery ? '没有找到匹配的记录' : '暂无阅读历史'}
+            {searchQuery ? t.history.noResults : t.history.empty}
           </p>
         </div>
       )}
@@ -189,7 +184,7 @@ export function History({ onSelect }: HistoryProps) {
                 <button
                   onClick={(e) => handleDelete(e, record.id!)}
                   className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-opacity"
-                  title="删除"
+                  title={t.common.delete}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -203,12 +198,12 @@ export function History({ onSelect }: HistoryProps) {
                 </span>
                 {record.summary && (
                   <span className="px-1.5 py-0.5 text-xs bg-green-100 text-green-600 rounded">
-                    已摘要
+                    {t.history.hasSummary}
                   </span>
                 )}
                 {record.chatMessages.length > 0 && (
                   <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-600 rounded">
-                    {record.chatMessages.length} 条对话
+                    {format(t.history.messages, { count: record.chatMessages.length })}
                   </span>
                 )}
                 <span className="ml-auto text-xs text-gray-400">

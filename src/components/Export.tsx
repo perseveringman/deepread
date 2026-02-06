@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useArticleStore } from '../store/articleStore';
+import { useI18n } from '@/i18n';
 import {
   exportToObsidian,
   copyToClipboard,
@@ -12,6 +13,7 @@ interface ExportProps {
 }
 
 export function Export({ onClose }: ExportProps) {
+  const { t, format } = useI18n();
   const { content, summary, chatMessages } = useArticleStore();
   
   const [options, setOptions] = useState<ExportOptions>({
@@ -33,7 +35,7 @@ export function Export({ onClose }: ExportProps) {
   if (!content) {
     return (
       <div className="p-4 text-center text-gray-500">
-        没有可导出的内容
+        {t.export.noSummary}
       </div>
     );
   }
@@ -61,7 +63,7 @@ export function Export({ onClose }: ExportProps) {
       <div className="bg-white rounded-lg shadow-xl w-[90%] max-w-lg max-h-[90%] flex flex-col">
         {/* 头部 */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">导出到 Obsidian</h2>
+          <h2 className="text-lg font-semibold">{t.export.title}</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-xl"
@@ -72,7 +74,7 @@ export function Export({ onClose }: ExportProps) {
         
         {/* 选项区域 */}
         <div className="p-4 space-y-3">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">导出内容</h3>
+          <h3 className="text-sm font-medium text-gray-700 mb-2">{t.export.exportContent}</h3>
           
           <label className="flex items-center gap-3 cursor-pointer">
             <input
@@ -82,8 +84,8 @@ export function Export({ onClose }: ExportProps) {
               className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
             <div>
-              <span className="text-sm font-medium">YAML Frontmatter</span>
-              <p className="text-xs text-gray-500">包含标题、来源、标签等元数据</p>
+              <span className="text-sm font-medium">{t.export.yamlFrontmatter}</span>
+              <p className="text-xs text-gray-500">{t.export.yamlDescription}</p>
             </div>
           </label>
           
@@ -97,10 +99,10 @@ export function Export({ onClose }: ExportProps) {
             />
             <div>
               <span className={`text-sm font-medium ${!summary ? 'text-gray-400' : ''}`}>
-                智能摘要
+                {t.export.smartSummary}
               </span>
               <p className="text-xs text-gray-500">
-                {summary ? '核心洞察、证据评估、详细摘要' : '(尚未生成摘要)'}
+                {summary ? t.export.summaryDescription : t.export.noSummary}
               </p>
             </div>
           </label>
@@ -115,12 +117,12 @@ export function Export({ onClose }: ExportProps) {
             />
             <div>
               <span className={`text-sm font-medium ${chatMessages.length === 0 ? 'text-gray-400' : ''}`}>
-                对话记录
+                {t.export.chatHistory}
               </span>
               <p className="text-xs text-gray-500">
                 {chatMessages.length > 0 
-                  ? `${chatMessages.length} 条对话消息` 
-                  : '(无对话记录)'}
+                  ? format(t.export.chatDescription, { count: chatMessages.length })
+                  : t.export.noChat}
               </p>
             </div>
           </label>
@@ -133,9 +135,9 @@ export function Export({ onClose }: ExportProps) {
               className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
             <div>
-              <span className="text-sm font-medium">原文内容</span>
+              <span className="text-sm font-medium">{t.export.originalContent}</span>
               <p className="text-xs text-gray-500">
-                包含完整原文 ({content.metadata.wordCount} 字)
+                {format(t.export.originalDescription, { count: content.metadata.wordCount })}
               </p>
             </div>
           </label>
@@ -145,14 +147,14 @@ export function Export({ onClose }: ExportProps) {
         {showPreview && exportResult && (
           <div className="mx-4 mb-4 border rounded-lg overflow-hidden">
             <div className="bg-gray-100 px-3 py-2 text-xs font-medium text-gray-600 flex justify-between items-center">
-              <span>预览: {exportResult.filename}</span>
+              <span>{t.common.preview}: {exportResult.filename}</span>
               <span className="text-gray-400">
-                {exportResult.markdown.length} 字符
+                {exportResult.markdown.length} chars
               </span>
             </div>
             <pre className="p-3 text-xs overflow-auto max-h-48 bg-gray-50 font-mono whitespace-pre-wrap">
               {exportResult.markdown.slice(0, 2000)}
-              {exportResult.markdown.length > 2000 && '\n\n... (内容已截断)'}
+              {exportResult.markdown.length > 2000 && '\n\n... (truncated)'}
             </pre>
           </div>
         )}
@@ -163,7 +165,7 @@ export function Export({ onClose }: ExportProps) {
             onClick={() => setShowPreview(!showPreview)}
             className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border rounded-lg hover:bg-gray-100"
           >
-            {showPreview ? '隐藏预览' : '预览'}
+            {showPreview ? t.export.hidePreview : t.export.showPreview}
           </button>
           
           <div className="flex-1" />
@@ -176,14 +178,14 @@ export function Export({ onClose }: ExportProps) {
                 : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
-            {copied ? '已复制 ✓' : '复制'}
+            {copied ? t.common.copied + ' ✓' : t.common.copy}
           </button>
           
           <button
             onClick={handleDownload}
             className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            下载 .md
+            {t.export.downloadMd}
           </button>
         </div>
       </div>

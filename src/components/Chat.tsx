@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useArticleStore } from '@/store/articleStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useI18n } from '@/i18n';
 
 export interface ChatHandle {
   setInput: (text: string) => void;
 }
 
 export const Chat = forwardRef<ChatHandle>(function Chat(_props, ref) {
+  const { t } = useI18n();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -55,16 +57,16 @@ export const Chat = forwardRef<ChatHandle>(function Chat(_props, ref) {
 
   // 建议问题
   const suggestedQuestions = [
-    '这篇文章的主要论点是什么？',
-    '作者提供了哪些证据？',
-    '这对我有什么实际应用？',
-    '有哪些值得质疑的地方？',
+    t.chat.questions.mainArgument,
+    t.chat.questions.evidence,
+    t.chat.questions.application,
+    t.chat.questions.critique,
   ];
 
   if (!content) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500 text-sm">请先提取文章内容</p>
+        <p className="text-gray-500 text-sm">{t.chat.extractFirst}</p>
       </div>
     );
   }
@@ -76,12 +78,12 @@ export const Chat = forwardRef<ChatHandle>(function Chat(_props, ref) {
         {chatMessages.length === 0 ? (
           <div className="space-y-4">
             <p className="text-sm text-gray-500 text-center py-4">
-              针对文章内容提问，AI 将基于文章回答
+              {t.chat.emptyState}
             </p>
             
             {/* 建议问题 */}
             <div className="space-y-2">
-              <p className="text-xs text-gray-400">试试这些问题：</p>
+              <p className="text-xs text-gray-400">{t.chat.suggestedQuestions}</p>
               {suggestedQuestions.map((q, i) => (
                 <button
                   key={i}
@@ -155,7 +157,7 @@ export const Chat = forwardRef<ChatHandle>(function Chat(_props, ref) {
             onClick={clearChat}
             className="text-xs text-gray-400 hover:text-gray-600"
           >
-            清除对话
+            {t.chat.clearChat}
           </button>
         </div>
       )}
@@ -168,7 +170,7 @@ export const Chat = forwardRef<ChatHandle>(function Chat(_props, ref) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="输入你的问题..."
+          placeholder={t.chat.placeholder}
           disabled={chatLoading || !apiKey}
           className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
         />
@@ -186,7 +188,7 @@ export const Chat = forwardRef<ChatHandle>(function Chat(_props, ref) {
       {/* API Key 提示 */}
       {!apiKey && (
         <p className="text-xs text-gray-400 text-center mt-2">
-          请先在设置中配置 API Key
+          {t.chat.apiKeyRequired}
         </p>
       )}
     </div>
