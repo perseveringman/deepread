@@ -10,9 +10,10 @@ import { Export } from '@/components/Export';
 import { History } from '@/components/History';
 import { StreamingSummary } from '@/components/StreamingSummary';
 import { LiteratureReview } from '@/components/LiteratureReview';
+import { Statistics } from '@/components/Statistics';
 import type { ArticleRecord } from '@/db';
 
-type TabType = 'summary' | 'chat' | 'history' | 'review';
+type TabType = 'summary' | 'chat' | 'history' | 'review' | 'stats';
 
 function App() {
   const { t } = useI18n();
@@ -264,6 +265,16 @@ function App() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setActiveTab('stats')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'stats'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t.tabs.stats || '统计'}
+          </button>
         </div>
 
         {/* 内容区域 */}
@@ -380,6 +391,11 @@ function App() {
           {/* 综述标签页 */}
           {activeTab === 'review' && (
             <LiteratureReview />
+          )}
+
+          {/* 统计标签页 */}
+          {activeTab === 'stats' && (
+            <Statistics />
           )}
         </div>
       </main>
