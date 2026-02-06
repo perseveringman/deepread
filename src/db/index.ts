@@ -4,7 +4,7 @@
  */
 
 import Dexie, { type Table } from 'dexie';
-import type { ExtractedContent, SmartSummary, ChatMessage } from '@/types';
+import type { ExtractedContent, SmartSummary, ChatMessage, LiteratureReview } from '@/types';
 
 /**
  * 层级标签
@@ -72,6 +72,7 @@ class DeepReadDatabase extends Dexie {
   articles!: Table<ArticleRecord, number>;
   tags!: Table<Tag, number>;
   articleTags!: Table<ArticleTag, number>;
+  literatureReviews!: Table<LiteratureReview, number>;
 
   constructor() {
     super('DeepReadDB');
@@ -91,6 +92,14 @@ class DeepReadDatabase extends Dexie {
       return tx.table('articles').toCollection().modify(article => {
         article.tagsGenerated = false;
       });
+    });
+    
+    // 数据库版本 3 - 添加文献综述功能
+    this.version(3).stores({
+      articles: '++id, url, urlHash, title, createdAt, updatedAt, lastAccessedAt, tagsGenerated',
+      tags: '++id, name, path, parentId, level, articleCount, createdAt',
+      articleTags: '++id, articleId, tagId, [articleId+tagId]',
+      literatureReviews: '++id, title, createdAt',
     });
   }
 }
@@ -525,5 +534,51 @@ export const articleDB = {
    */
   async count(): Promise<number> {
     return await db.articles.count();
+  },
+};
+
+/**
+ * 文献综述数据库操作
+ */
+export const literatureReviewDB = {
+  /**
+   * 保存文献综述
+   */
+  async save(review: Omit<LiteratureReview, 'id' | 'createdAt'>): Promise<number> {
+    return await db.literatureReviews.add({
+      ...review,
+      createdAt: Date.now(),
+    } as LiteratureReview);
+  },
+
+  /**
+   * 获取所有文献综述
+   */
+  async getAll(): Promise<LiteratureReview[]> {
+    return await db.literatureReviews
+      .orderBy('createdAt')
+      .reverse()
+      .toArray();
+  },
+
+  /**
+   * 根据 ID 获取文献综述
+   */
+  async getById(id: number): Promise<LiteratureReview | undefined> {
+    return await db.literatureReviews.get(id);
+  },
+
+  /**
+   * 删除文献综述
+   */
+  async delete(id: number): Promise<void> {
+    await db.literatureReviews.delete(id);
+  },
+
+  /**
+   * 获取综述数量
+   */
+  async count(): Promise<number> {
+    return await db.literatureReviews.count();
   },
 };

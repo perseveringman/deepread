@@ -2,15 +2,17 @@ import { useState, useEffect, useRef } from 'react';
 import { useArticleStore } from '@/store/articleStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useHistoryStore } from '@/store/historyStore';
+import { useLiteratureReviewStore } from '@/store/literatureReviewStore';
 import { useI18n } from '@/i18n';
 import { Settings } from '@/components/Settings';
 import { Chat, type ChatHandle } from '@/components/Chat';
 import { Export } from '@/components/Export';
 import { History } from '@/components/History';
 import { StreamingSummary } from '@/components/StreamingSummary';
+import { LiteratureReview } from '@/components/LiteratureReview';
 import type { ArticleRecord } from '@/db';
 
-type TabType = 'summary' | 'chat' | 'history';
+type TabType = 'summary' | 'chat' | 'history' | 'review';
 
 function App() {
   const { t } = useI18n();
@@ -42,6 +44,7 @@ function App() {
   } = useSettingsStore();
 
   const { totalCount, refreshCount } = useHistoryStore();
+  const { reviews } = useLiteratureReviewStore();
 
   // 加载设置
   useEffect(() => {
@@ -246,6 +249,21 @@ function App() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setActiveTab('review')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors relative ${
+              activeTab === 'review'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t.tabs.review || '综述'}
+            {reviews.length > 0 && (
+              <span className="ml-1 text-xs text-gray-400">
+                ({reviews.length})
+              </span>
+            )}
+          </button>
         </div>
 
         {/* 内容区域 */}
@@ -357,6 +375,11 @@ function App() {
           {/* 历史标签页 */}
           {activeTab === 'history' && (
             <History onSelect={handleSelectHistory} />
+          )}
+
+          {/* 综述标签页 */}
+          {activeTab === 'review' && (
+            <LiteratureReview />
           )}
         </div>
       </main>

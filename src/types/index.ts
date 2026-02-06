@@ -118,3 +118,51 @@ export interface StoredArticle {
   createdAt: number;
   lastAccessedAt: number;
 }
+
+// Literature Review Types (文献综述)
+export interface LiteratureReview {
+  id?: number;
+  title: string;                        // 综述标题
+  articleIds: number[];                 // 参与综述的文章 ID 列表
+  createdAt: number;
+  
+  // 核心观点汇总
+  coreFindings: {
+    mainThemes: string[];               // 主要研究主题
+    keyArguments: Array<{
+      argument: string;                 // 核心论点
+      supportingArticles: number[];     // 支持该论点的文章 ID
+    }>;
+  };
+  
+  // 共识与分歧
+  consensus: {
+    agreements: Array<{
+      point: string;                    // 共识点
+      articleIds: number[];             // 持此观点的文章
+    }>;
+    disagreements: Array<{
+      topic: string;                    // 分歧主题
+      positions: Array<{
+        stance: string;                 // 立场描述
+        articleIds: number[];           // 持此立场的文章
+      }>;
+    }>;
+  };
+  
+  // 知识空白
+  knowledgeGaps: Array<{
+    gap: string;                        // 空白描述
+    implication: string;                // 研究意义/影响
+  }>;
+  
+  // 延伸阅读建议
+  furtherReading: Array<{
+    topic: string;                      // 推荐主题
+    reason: string;                     // 推荐原因
+    keywords: string[];                 // 搜索关键词
+  }>;
+  
+  // 综合结论
+  conclusion: string;
+}

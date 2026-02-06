@@ -39,6 +39,7 @@ export const translations = {
       summary: '摘要',
       chat: '对话',
       history: '历史',
+      review: '综述',
     },
     
     // 摘要
@@ -161,6 +162,35 @@ export const translations = {
       showPreview: '预览',
       downloadMd: '下载 .md',
     },
+    
+    // 文献综述
+    literatureReview: {
+      noArticles: '没有可用文章',
+      readFirstHint: '请先阅读一些文章',
+      selectedCount: '已选择 {count} 篇',
+      clearSelection: '清除',
+      selectAll: '全选',
+      selectAtLeast2: '请至少选择2篇文章',
+      generateReview: '生成文献综述',
+      estimatedTokens: '预计使用约 {tokens} tokens',
+      noApiKey: '请先配置 API Key',
+      generating: '正在分析 {count} 篇文章...',
+      waitingResponse: '等待AI响应...',
+      backToSelect: '返回',
+      confirmDelete: '确定删除这篇综述？',
+      history: '历史综述',
+      articles: '篇文章',
+      coreFindings: '核心发现',
+      mainThemes: '主要主题',
+      keyArguments: '核心论点',
+      consensusAndDisagreements: '共识与分歧',
+      agreements: '共识点',
+      disagreements: '分歧点',
+      knowledgeGaps: '知识空白',
+      furtherReading: '延伸阅读建议',
+      conclusion: '综合结论',
+      references: '参考文章',
+    },
   },
   
   en: {
@@ -199,6 +229,7 @@ export const translations = {
       summary: 'Summary',
       chat: 'Chat',
       history: 'History',
+      review: 'Review',
     },
     
     // Summary
@@ -320,6 +351,35 @@ export const translations = {
       hidePreview: 'Hide Preview',
       showPreview: 'Preview',
       downloadMd: 'Download .md',
+    },
+    
+    // Literature Review
+    literatureReview: {
+      noArticles: 'No articles available',
+      readFirstHint: 'Please read some articles first',
+      selectedCount: '{count} selected',
+      clearSelection: 'Clear',
+      selectAll: 'Select All',
+      selectAtLeast2: 'Select at least 2 articles',
+      generateReview: 'Generate Literature Review',
+      estimatedTokens: 'Estimated ~{tokens} tokens',
+      noApiKey: 'Please configure API Key first',
+      generating: 'Analyzing {count} articles...',
+      waitingResponse: 'Waiting for AI response...',
+      backToSelect: 'Back',
+      confirmDelete: 'Delete this review?',
+      history: 'Past Reviews',
+      articles: 'articles',
+      coreFindings: 'Core Findings',
+      mainThemes: 'Main Themes',
+      keyArguments: 'Key Arguments',
+      consensusAndDisagreements: 'Consensus & Disagreements',
+      agreements: 'Agreements',
+      disagreements: 'Disagreements',
+      knowledgeGaps: 'Knowledge Gaps',
+      furtherReading: 'Further Reading',
+      conclusion: 'Conclusion',
+      references: 'References',
     },
   },
 } as const;
