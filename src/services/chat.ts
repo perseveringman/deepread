@@ -2,7 +2,7 @@
  * 对话问答服务
  */
 
-import { callOpenRouter, streamOpenRouter, type OpenRouterMessage } from './openrouter';
+import { callOpenRouter, type OpenRouterMessage } from './openrouter';
 import type { ExtractedContent, ChatMessage } from '@/types';
 
 /**
@@ -110,52 +110,6 @@ export async function sendChatMessage(
     id: generateId(),
     role: 'assistant',
     content: responseText,
-    timestamp: Date.now(),
-  };
-}
-
-/**
- * 流式发送消息并获取回复
- */
-export async function* streamChatMessage(
-  apiKey: string,
-  model: string,
-  content: ExtractedContent,
-  chatHistory: ChatMessage[],
-  userMessage: string,
-  language: 'zh' | 'en' | 'auto' = 'auto'
-): AsyncGenerator<string, ChatMessage, unknown> {
-  const systemPrompt = buildChatSystemPrompt(content, language);
-  
-  // 添加用户消息到历史
-  const updatedHistory: ChatMessage[] = [
-    ...chatHistory,
-    {
-      id: generateId(),
-      role: 'user',
-      content: userMessage,
-      timestamp: Date.now(),
-    },
-  ];
-
-  const messages = convertToOpenRouterMessages(systemPrompt, updatedHistory);
-
-  let fullContent = '';
-  
-  for await (const chunk of streamOpenRouter(apiKey, {
-    model,
-    messages,
-    temperature: 0.7,
-    max_tokens: 1500,
-  })) {
-    fullContent += chunk;
-    yield chunk;
-  }
-
-  return {
-    id: generateId(),
-    role: 'assistant',
-    content: fullContent,
     timestamp: Date.now(),
   };
 }

@@ -8,9 +8,68 @@ chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => console.error(error));
 
+// OpenRouter API 代理
+async function proxyOpenRouterRequest(
+  apiKey: string,
+  model: string,
+  messages: Array<{ role: string; content: string }>,
+  options?: { temperature?: number; max_tokens?: number }
+): Promise<{ success: true; data: unknown } | { success: false; error: string; code?: string; status?: number }> {
+  const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+  
+  try {
+    console.log('Proxying OpenRouter request:', { model, messageCount: messages.length });
+    
+    const response = await fetch(OPENROUTER_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://deepread.app',
+        'X-Title': 'DeepRead',
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.max_tokens ?? 4096,
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}`;
+      let errorCode = 'unknown';
+      
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error?.message || errorMessage;
+        errorCode = errorData.error?.code || errorCode;
+      } catch {
+        // ignore json parse error
+      }
+      
+      console.error('OpenRouter API error:', { status: response.status, message: errorMessage });
+      return { success: false, error: errorMessage, code: errorCode, status: response.status };
+    }
+
+    const data = await response.json();
+    console.log('OpenRouter response received');
+    return { success: true, data };
+  } catch (error) {
+    console.error('OpenRouter fetch error:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : '网络请求失败',
+      code: 'network_error',
+      status: 0
+    };
+  }
+}
+
 // Listen for messages from side panel
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  console.log('Background received message:', message);
+  console.log('Background received message:', message.type);
   
   if (message.type === 'EXTRACT_CONTENT') {
     // Forward to content script of active tab
@@ -37,6 +96,24 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         }
       });
     });
+    return true; // Keep channel open for async response
+  }
+  
+  // OpenRouter API 代理请求
+  if (message.type === 'OPENROUTER_REQUEST') {
+    const { apiKey, model, messages, options } = message;
+    
+    proxyOpenRouterRequest(apiKey, model, messages, options)
+      .then(result => {
+        sendResponse(result);
+      })
+      .catch(error => {
+        sendResponse({ 
+          success: false, 
+          error: error instanceof Error ? error.message : '未知错误' 
+        });
+      });
+    
     return true; // Keep channel open for async response
   }
   
