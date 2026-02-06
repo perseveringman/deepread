@@ -7,6 +7,7 @@ import { Settings } from '@/components/Settings';
 import { Chat, type ChatHandle } from '@/components/Chat';
 import { Export } from '@/components/Export';
 import { History } from '@/components/History';
+import { StreamingSummary } from '@/components/StreamingSummary';
 import type { ArticleRecord } from '@/db';
 
 type TabType = 'summary' | 'chat' | 'history';
@@ -252,100 +253,11 @@ function App() {
           {/* 摘要标签页 */}
           {activeTab === 'summary' && (
             <>
-              {/* 摘要结果 */}
-              {summary && (
-                <div className="space-y-4">
-                  {/* 一句话摘要 */}
-                  <div className="card p-4 bg-primary-50 border-primary-200">
-                    <p className="text-primary-900 font-medium">{summary.oneLiner}</p>
-                  </div>
+              {/* 流式摘要组件（处理流式生成和已完成摘要） */}
+              {(summarizing || summary) && <StreamingSummary />}
 
-                  {/* 核心洞察 */}
-                  <div className="card p-4">
-                    <h2 className="text-sm font-semibold text-gray-700 mb-3">{t.summary.coreInsights}</h2>
-                    <div className="space-y-3">
-                      <div>
-                        <h3 className="text-xs font-medium text-gray-500 uppercase">{t.summary.mainPoint}</h3>
-                        <p className="text-sm text-gray-700 mt-1">{summary.coreInsights.mainPoint}</p>
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-medium text-gray-500 uppercase">{t.summary.whyItMatters}</h3>
-                        <p className="text-sm text-gray-700 mt-1">{summary.coreInsights.whyItMatters}</p>
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-medium text-gray-500 uppercase">{t.summary.howToApply}</h3>
-                        <p className="text-sm text-gray-700 mt-1">{summary.coreInsights.howToApply}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 证据强度 */}
-                  <div className="card p-4">
-                    <h2 className="text-sm font-semibold text-gray-700 mb-2">{t.summary.evidenceStrength}</h2>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        summary.evidenceStrength.level === 'strong' ? 'bg-green-100 text-green-700' :
-                        summary.evidenceStrength.level === 'moderate' ? 'bg-yellow-100 text-yellow-700' :
-                        summary.evidenceStrength.level === 'weak' ? 'bg-orange-100 text-orange-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {t.summary.evidenceLevels[summary.evidenceStrength.level as keyof typeof t.summary.evidenceLevels]}
-                      </span>
-                      <span className="text-sm text-gray-600">{summary.evidenceStrength.reasoning}</span>
-                    </div>
-                  </div>
-
-                  {/* 详细摘要 */}
-                  {summary.detailedSummary.sections.length > 0 && (
-                    <div className="card p-4">
-                      <h2 className="text-sm font-semibold text-gray-700 mb-3">{t.summary.detailedSummary}</h2>
-                      <div className="space-y-4">
-                        {summary.detailedSummary.sections.map((section, index) => (
-                          <div key={index}>
-                            <h3 className="text-sm font-medium text-gray-800">{section.heading}</h3>
-                            <p className="text-sm text-gray-600 mt-1">{section.summary}</p>
-                            {section.keyQuotes && section.keyQuotes.length > 0 && (
-                              <div className="mt-2 pl-3 border-l-2 border-gray-200">
-                                {section.keyQuotes.map((quote, qIndex) => (
-                                  <p key={qIndex} className="text-xs text-gray-500 italic">"{quote}"</p>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 思考触发 */}
-                  {summary.thoughtTriggers && (
-                    <div className="card p-4">
-                      <h2 className="text-sm font-semibold text-gray-700 mb-3">{t.summary.thoughtTriggers}</h2>
-                      <div className="space-y-2">
-                        <p className="text-sm text-gray-600">
-                          <span className="font-medium">{t.summary.applicationPrompt}:</span> {summary.thoughtTriggers.applicationPrompt}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          <span className="font-medium">{t.summary.conflictPrompt}:</span> {summary.thoughtTriggers.conflictPrompt}
-                        </p>
-                        {summary.thoughtTriggers.relatedQuestions.length > 0 && (
-                          <div>
-                            <span className="text-sm font-medium text-gray-600">{t.summary.relatedQuestions}:</span>
-                            <ul className="mt-1 list-disc list-inside text-sm text-gray-600">
-                              {summary.thoughtTriggers.relatedQuestions.map((q, i) => (
-                                <li key={i}>{q}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 提取的内容（调试模式） */}
-              {content && !summary && (
+              {/* 提取的内容（调试模式） - 只在没有摘要且不在生成时显示 */}
+              {content && !summary && !summarizing && (
                 <div className="space-y-4">
                   {/* 内容类型 */}
                   <div className="card p-4">

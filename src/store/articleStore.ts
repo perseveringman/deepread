@@ -1,10 +1,14 @@
 import { create } from 'zustand';
 import type { ExtractedContent, SmartSummary, ChatMessage } from '@/types';
 import type { ExtractContentResponse } from '@/types/messages';
-import { generateSummary } from '@/services/summarizer';
 import { sendChatMessageStream, createUserMessage, createAssistantMessage } from '@/services/chat';
-import { OpenRouterAPIError } from '@/services/openrouter';
 import { articleDB, type ArticleRecord } from '@/db';
+import { 
+  streamFullSummary, 
+  type StreamingSummaryState,
+  initialStreamingState,
+  SUMMARY_BLOCKS,
+} from '@/services/streamingSummarizer';
 
 interface ArticleState {
   // 当前文章 URL
@@ -20,6 +24,10 @@ interface ArticleState {
   summarizing: boolean;
   summaryError: string | null;
   
+  // 流式摘要状态
+  streamingSummary: StreamingSummaryState;
+  cancelSummaryStream: (() => void) | null;
+  
   // 对话
   chatMessages: ChatMessage[];
   chatLoading: boolean;
@@ -29,7 +37,7 @@ interface ArticleState {
   
   // 操作
   extractContent: () => Promise<void>;
-  generateSummary: (apiKey: string, model: string, language: 'zh' | 'en' | 'auto') => Promise<void>;
+  generateSummary: (apiKey: string, model: string, language: 'zh' | 'en' | 'auto') => void;
   sendMessage: (apiKey: string, model: string, message: string, language: 'zh' | 'en' | 'auto') => void;
   loadFromHistory: (record: ArticleRecord) => void;
   clearContent: () => void;
@@ -47,6 +55,8 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
   summary: null,
   summarizing: false,
   summaryError: null,
+  streamingSummary: initialStreamingState,
+  cancelSummaryStream: null,
   chatMessages: [],
   chatLoading: false,
   chatError: null,
@@ -106,8 +116,13 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
     }
   },
   
-  generateSummary: async (apiKey: string, model: string, language: 'zh' | 'en' | 'auto') => {
-    const { content, currentUrl } = get();
+  generateSummary: (apiKey: string, model: string, language: 'zh' | 'en' | 'auto') => {
+    const { content, currentUrl, cancelSummaryStream } = get();
+    
+    // 取消之前的流式请求
+    if (cancelSummaryStream) {
+      cancelSummaryStream();
+    }
     
     if (!content) {
       set({ summaryError: '请先提取文章内容' });
@@ -119,31 +134,83 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
       return;
     }
     
-    set({ summarizing: true, summaryError: null });
+    // 重置状态，开始流式生成
+    set({ 
+      summarizing: true, 
+      summaryError: null,
+      summary: null,
+      streamingSummary: {
+        ...initialStreamingState,
+        currentBlock: SUMMARY_BLOCKS[0],
+      },
+    });
     
-    try {
-      const summary = await generateSummary(apiKey, model, content, language);
-      set({ summary, summarizing: false, summaryError: null });
-      
-      // 保存摘要到数据库
-      if (currentUrl) {
-        articleDB.updateSummary(currentUrl, summary).catch(console.error);
+    // 开始流式生成
+    const cancel = streamFullSummary(
+      apiKey,
+      model,
+      content,
+      language,
+      // onBlockStart
+      (block, _index) => {
+        set(state => ({
+          streamingSummary: {
+            ...state.streamingSummary,
+            currentBlock: block,
+            streamingText: '',
+          },
+        }));
+      },
+      // onBlockChunk
+      (_block, _chunk, fullText) => {
+        set(state => ({
+          streamingSummary: {
+            ...state.streamingSummary,
+            streamingText: fullText,
+          },
+        }));
+      },
+      // onBlockDone
+      (block, blockData) => {
+        set(state => ({
+          streamingSummary: {
+            ...state.streamingSummary,
+            completedBlocks: [...state.streamingSummary.completedBlocks, block],
+            blockContent: { ...state.streamingSummary.blockContent, ...blockData },
+            streamingText: '',
+          },
+        }));
+      },
+      // onAllDone
+      (summary) => {
+        set({ 
+          summary, 
+          summarizing: false, 
+          summaryError: null,
+          streamingSummary: initialStreamingState,
+          cancelSummaryStream: null,
+        });
+        
+        // 保存摘要到数据库
+        if (currentUrl) {
+          articleDB.updateSummary(currentUrl, summary).catch(console.error);
+        }
+      },
+      // onError
+      (error) => {
+        set({ 
+          summarizing: false, 
+          summaryError: error,
+          streamingSummary: {
+            ...get().streamingSummary,
+            error,
+          },
+          cancelSummaryStream: null,
+        });
       }
-    } catch (error) {
-      let errorMessage = '生成摘要失败';
-      
-      if (error instanceof OpenRouterAPIError) {
-        errorMessage = error.userFriendlyMessage;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
-      set({ 
-        summary: null, 
-        summarizing: false, 
-        summaryError: errorMessage 
-      });
-    }
+    );
+    
+    set({ cancelSummaryStream: cancel });
   },
   
   sendMessage: (apiKey: string, model: string, message: string, language: 'zh' | 'en' | 'auto') => {
@@ -242,9 +309,12 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
   },
   
   loadFromHistory: (record: ArticleRecord) => {
-    const { cancelStream } = get();
+    const { cancelStream, cancelSummaryStream } = get();
     if (cancelStream) {
       cancelStream();
+    }
+    if (cancelSummaryStream) {
+      cancelSummaryStream();
     }
     
     set({
@@ -257,6 +327,8 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
       chatError: null,
       streamingContent: null,
       cancelStream: null,
+      streamingSummary: initialStreamingState,
+      cancelSummaryStream: null,
     });
   },
   
@@ -289,9 +361,12 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
   },
   
   clearAll: () => {
-    const { cancelStream } = get();
+    const { cancelStream, cancelSummaryStream } = get();
     if (cancelStream) {
       cancelStream();
+    }
+    if (cancelSummaryStream) {
+      cancelSummaryStream();
     }
     
     set({ 
@@ -304,6 +379,8 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
       chatError: null,
       streamingContent: null,
       cancelStream: null,
+      streamingSummary: initialStreamingState,
+      cancelSummaryStream: null,
     });
   },
 }));
