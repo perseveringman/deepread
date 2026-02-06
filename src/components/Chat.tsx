@@ -1,8 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useArticleStore } from '@/store/articleStore';
 import { useSettingsStore } from '@/store/settingsStore';
 
-export function Chat() {
+export interface ChatHandle {
+  setInput: (text: string) => void;
+}
+
+export const Chat = forwardRef<ChatHandle>(function Chat(_props, ref) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -17,6 +21,14 @@ export function Chat() {
   } = useArticleStore();
 
   const { apiKey, model, language } = useSettingsStore();
+
+  // 暴露 setInput 方法给父组件
+  useImperativeHandle(ref, () => ({
+    setInput: (text: string) => {
+      setInput(text);
+      inputRef.current?.focus();
+    },
+  }));
 
   // 自动滚动到最新消息
   useEffect(() => {
@@ -179,4 +191,4 @@ export function Chat() {
       )}
     </div>
   );
-}
+});

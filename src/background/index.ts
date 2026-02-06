@@ -8,6 +8,54 @@ chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => console.error(error));
 
+// 创建右键菜单
+chrome.runtime.onInstalled.addListener(() => {
+  // 选中文字时的菜单
+  chrome.contextMenus.create({
+    id: 'deepread-ask-selection',
+    title: '用 DeepRead 提问: "%s"',
+    contexts: ['selection'],
+  });
+  
+  // 页面上的菜单
+  chrome.contextMenus.create({
+    id: 'deepread-extract',
+    title: '用 DeepRead 提取此页面',
+    contexts: ['page'],
+  });
+  
+  console.log('Context menus created');
+});
+
+// 处理右键菜单点击
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (!tab?.id || !tab.windowId) return;
+  
+  // 确保侧边栏已打开
+  await chrome.sidePanel.open({ windowId: tab.windowId });
+  
+  // 延迟确保侧边栏加载完成
+  setTimeout(() => {
+    if (info.menuItemId === 'deepread-ask-selection' && info.selectionText) {
+      // 发送选中文字给侧边栏
+      chrome.runtime.sendMessage({
+        type: 'ASK_SELECTION',
+        text: info.selectionText,
+      }).catch(() => {
+        // 忽略错误
+      });
+    } else if (info.menuItemId === 'deepread-extract') {
+      // 发送提取命令
+      chrome.runtime.sendMessage({
+        type: 'COMMAND',
+        command: 'extract-article',
+      }).catch(() => {
+        // 忽略错误
+      });
+    }
+  }, 300);
+});
+
 // 处理快捷键命令
 chrome.commands.onCommand.addListener(async (command) => {
   console.log('Command received:', command);

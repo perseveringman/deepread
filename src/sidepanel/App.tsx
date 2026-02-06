@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useArticleStore } from '@/store/articleStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { Settings } from '@/components/Settings';
-import { Chat } from '@/components/Chat';
+import { Chat, type ChatHandle } from '@/components/Chat';
 import { Export } from '@/components/Export';
 import { History } from '@/components/History';
 import type { ArticleRecord } from '@/db';
@@ -14,6 +14,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('summary');
+  const chatRef = useRef<ChatHandle>(null);
   
   const { 
     content, 
@@ -51,9 +52,9 @@ function App() {
     refreshCount();
   }, [refreshCount]);
 
-  // 监听快捷键命令
+  // 监听快捷键命令和右键菜单
   useEffect(() => {
-    const handleCommand = (message: { type: string; command: string }) => {
+    const handleMessage = (message: { type: string; command?: string; text?: string }) => {
       if (message.type === 'COMMAND') {
         if (message.command === 'extract-article') {
           extractContent();
@@ -61,19 +62,26 @@ function App() {
           if (content && apiKey) {
             generateSummary(apiKey, model, language);
           } else if (!content) {
-            // 如果没有内容，先提取
             extractContent();
           } else {
-            // 没有 API Key，打开设置
             setShowSettings(true);
           }
         }
+      } else if (message.type === 'ASK_SELECTION' && message.text) {
+        // 右键菜单选中文字提问
+        setActiveTab('chat');
+        // 延迟一下确保 Chat 组件已渲染
+        setTimeout(() => {
+          if (chatRef.current) {
+            chatRef.current.setInput(`关于这段文字："${message.text}"，请解释一下。`);
+          }
+        }, 100);
       }
     };
 
-    chrome.runtime.onMessage.addListener(handleCommand);
+    chrome.runtime.onMessage.addListener(handleMessage);
     return () => {
-      chrome.runtime.onMessage.removeListener(handleCommand);
+      chrome.runtime.onMessage.removeListener(handleMessage);
     };
   }, [content, apiKey, model, language, extractContent, generateSummary]);
 
@@ -422,7 +430,7 @@ function App() {
           {/* 对话标签页 */}
           {activeTab === 'chat' && (
             content ? (
-              <Chat />
+              <Chat ref={chatRef} />
             ) : (
               <div className="card p-4">
                 <p className="text-gray-600 text-sm">
