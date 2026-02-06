@@ -1,13 +1,8 @@
 # Dependencies
-.sisyphus/
 node_modules/
 
 # Build output
 dist/
-
-# Platform binaries (built, not committed)
-packages/*/bin/oh-my-opencode
-packages/*/bin/oh-my-opencode.exe
 
 # IDE
 .idea/
@@ -19,18 +14,10 @@ packages/*/bin/oh-my-opencode.exe
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-npm-debug.log*
-
-# Lock files (use bun.lockb instead)
-package-lock.json
-yarn.lock
-
 # Environment
 .env
 .env.local
-test-injection/
-notepad.md
-oauth-success.html
-*.bun-build
+
+# Logs
+*.log
+npm-debug.log*
