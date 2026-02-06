@@ -100,8 +100,10 @@ function extractContent(): ExtractedContent {
   const url = window.location.href;
   const doc = document;
   
-  // 克隆文档以避免修改原始 DOM
-  const clonedDoc = doc.cloneNode(true) as Document;
+  // 使用 DOMParser 创建新文档以避免 Custom Elements 问题
+  // 直接 cloneNode 会导致 __CE_registry 为 null 的错误
+  const parser = new DOMParser();
+  const clonedDoc = parser.parseFromString(doc.documentElement.outerHTML, 'text/html');
   
   // 使用 Readability 解析
   const reader = new Readability(clonedDoc);
