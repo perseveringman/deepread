@@ -18,6 +18,8 @@ export function Settings({ onClose }: SettingsProps) {
 
   const [localApiKey, setLocalApiKey] = useState('');
   const [localModel, setLocalModel] = useState('');
+  const [customModel, setCustomModel] = useState('');
+  const [useCustomModel, setUseCustomModel] = useState(false);
   const [localLanguage, setLocalLanguage] = useState<'zh' | 'en' | 'auto'>('auto');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,12 +36,30 @@ export function Settings({ onClose }: SettingsProps) {
   useEffect(() => {
     if (isLoaded) {
       setLocalApiKey(apiKey);
-      setLocalModel(model);
       setLocalLanguage(language);
+      
+      // 检查是否是预设模型
+      const isPreset = AVAILABLE_MODELS.some(m => m.id === model);
+      if (isPreset) {
+        setLocalModel(model);
+        setUseCustomModel(false);
+        setCustomModel('');
+      } else {
+        setLocalModel(AVAILABLE_MODELS[0].id);
+        setUseCustomModel(true);
+        setCustomModel(model);
+      }
     }
   }, [isLoaded, apiKey, model, language]);
 
   const handleSave = async () => {
+    const finalModel = useCustomModel ? customModel.trim() : localModel;
+    
+    if (!finalModel) {
+      setError('请选择或输入模型');
+      return;
+    }
+    
     setSaving(true);
     setError(null);
     setSuccess(false);
@@ -47,7 +67,7 @@ export function Settings({ onClose }: SettingsProps) {
     try {
       await saveSettings({
         apiKey: localApiKey,
-        model: localModel,
+        model: finalModel,
         language: localLanguage,
       });
       setSuccess(true);
@@ -103,17 +123,59 @@ export function Settings({ onClose }: SettingsProps) {
         <label className="block text-sm font-medium text-gray-700 mb-1">
           AI 模型
         </label>
-        <select
-          value={localModel}
-          onChange={(e) => setLocalModel(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-        >
-          {AVAILABLE_MODELS.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name} - {m.description}
-            </option>
-          ))}
-        </select>
+        
+        {/* 切换按钮 */}
+        <div className="flex gap-2 mb-2">
+          <button
+            type="button"
+            onClick={() => setUseCustomModel(false)}
+            className={`px-3 py-1 text-xs rounded-full transition-colors ${
+              !useCustomModel 
+                ? 'bg-primary-100 text-primary-700 border border-primary-300' 
+                : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
+            }`}
+          >
+            预设模型
+          </button>
+          <button
+            type="button"
+            onClick={() => setUseCustomModel(true)}
+            className={`px-3 py-1 text-xs rounded-full transition-colors ${
+              useCustomModel 
+                ? 'bg-primary-100 text-primary-700 border border-primary-300' 
+                : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
+            }`}
+          >
+            自定义模型
+          </button>
+        </div>
+        
+        {!useCustomModel ? (
+          <select
+            value={localModel}
+            onChange={(e) => setLocalModel(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+          >
+            {AVAILABLE_MODELS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name} - {m.description}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div>
+            <input
+              type="text"
+              value={customModel}
+              onChange={(e) => setCustomModel(e.target.value)}
+              placeholder="例如: anthropic/claude-3-opus"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              从 <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">openrouter.ai/models</a> 查看所有可用模型
+            </p>
+          </div>
+        )}
       </div>
 
       {/* 语言选择 */}
