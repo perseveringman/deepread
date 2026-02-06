@@ -1,10 +1,45 @@
 import { useState, useEffect } from 'react';
 import { useHistoryStore } from '@/store/historyStore';
 import { useI18n } from '@/i18n';
+import { articleTagDB, type Tag, type ArticleTag } from '@/db';
 import type { ArticleRecord } from '@/db';
 
 interface HistoryProps {
   onSelect: (record: ArticleRecord) => void;
+}
+
+/**
+ * 历史记录项的标签预览
+ */
+function HistoryItemTags({ articleId }: { articleId: number }) {
+  const [tags, setTags] = useState<(ArticleTag & { tag: Tag })[]>([]);
+  
+  useEffect(() => {
+    articleTagDB.getArticleTags(articleId).then(setTags).catch(console.error);
+  }, [articleId]);
+  
+  if (tags.length === 0) return null;
+  
+  // 只显示前3个标签
+  const displayTags = tags.slice(0, 3);
+  const hasMore = tags.length > 3;
+  
+  return (
+    <div className="flex flex-wrap gap-1 mt-1.5">
+      {displayTags.map(rel => (
+        <span 
+          key={rel.id} 
+          className="px-1 py-0.5 text-[10px] bg-purple-50 text-purple-600 rounded border border-purple-100"
+          title={rel.tag.path}
+        >
+          {rel.tag.name}
+        </span>
+      ))}
+      {hasMore && (
+        <span className="text-[10px] text-gray-400">+{tags.length - 3}</span>
+      )}
+    </div>
+  );
 }
 
 export function History({ onSelect }: HistoryProps) {
@@ -210,6 +245,9 @@ export function History({ onSelect }: HistoryProps) {
                   {formatDate(record.lastAccessedAt)}
                 </span>
               </div>
+              
+              {/* 标签预览 */}
+              <HistoryItemTags articleId={record.id!} />
             </div>
           ))}
         </div>

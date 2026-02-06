@@ -9,6 +9,7 @@ import {
   initialStreamingState,
   SUMMARY_BLOCKS,
 } from '@/services/streamingSummarizer';
+import { generateAndSaveArticleTags } from '@/services/tagGenerator';
 
 interface ArticleState {
   // 当前文章 URL
@@ -183,6 +184,8 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
       },
       // onAllDone
       (summary) => {
+        const { content: currentContent } = get();
+        
         set({ 
           summary, 
           summarizing: false, 
@@ -194,6 +197,20 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
         // 保存摘要到数据库
         if (currentUrl) {
           articleDB.updateSummary(currentUrl, summary).catch(console.error);
+          
+          // 后台生成标签（静默，不阻塞）
+          articleDB.getByUrl(currentUrl).then(article => {
+            if (article && currentContent && !article.tagsGenerated) {
+              generateAndSaveArticleTags(
+                apiKey,
+                model,
+                article.id!,
+                currentContent,
+                summary,
+                language
+              ).catch(err => console.error('Tag generation failed:', err));
+            }
+          }).catch(console.error);
         }
       },
       // onError

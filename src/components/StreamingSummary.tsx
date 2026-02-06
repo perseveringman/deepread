@@ -2,9 +2,13 @@
  * 摘要骨架屏和流式显示组件
  */
 
+import { useEffect, useState } from 'react';
 import { useI18n } from '@/i18n';
 import { useArticleStore } from '@/store/articleStore';
+import { useTagStore } from '@/store/tagStore';
 import { SUMMARY_BLOCKS, BLOCK_NAMES, type SummaryBlock } from '@/services/streamingSummarizer';
+import { ArticleTagEditor } from './Tags';
+import { articleDB } from '@/db';
 
 // 骨架屏动画样式
 const skeletonClass = "animate-pulse bg-gray-200 rounded";
@@ -349,6 +353,36 @@ function ThoughtTriggersBlock({
 }
 
 /**
+ * 标签区域组件
+ */
+function TagsBlock({ currentUrl }: { currentUrl: string | null }) {
+  const { t } = useI18n();
+  const { loadingArticleTags } = useTagStore();
+  const [articleId, setArticleId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (currentUrl) {
+      articleDB.getByUrl(currentUrl).then(article => {
+        setArticleId(article?.id || null);
+      });
+    }
+  }, [currentUrl]);
+
+  if (!articleId) return null;
+
+  return (
+    <div className="card p-4">
+      <h2 className="text-sm font-semibold text-gray-700 mb-2">标签</h2>
+      {loadingArticleTags ? (
+        <div className="text-xs text-gray-400">{t.common.loading}</div>
+      ) : (
+        <ArticleTagEditor articleId={articleId} />
+      )}
+    </div>
+  );
+}
+
+/**
  * 进度指示器
  */
 function ProgressIndicator({ 
@@ -379,8 +413,23 @@ function ProgressIndicator({
  */
 export function StreamingSummary() {
   const { t, lang } = useI18n();
-  const { summarizing, summary, streamingSummary } = useArticleStore();
+  const { summarizing, summary, streamingSummary, currentUrl } = useArticleStore();
+  const { loadArticleTags, clearCurrentArticleTags } = useTagStore();
   const { currentBlock, blockContent, streamingText } = streamingSummary;
+
+  // 加载当前文章的标签
+  useEffect(() => {
+    if (currentUrl && summary && !summarizing) {
+      // 摘要完成后加载标签
+      articleDB.getByUrl(currentUrl).then(article => {
+        if (article?.id) {
+          loadArticleTags(article.id);
+        }
+      });
+    } else {
+      clearCurrentArticleTags();
+    }
+  }, [currentUrl, summary, summarizing, loadArticleTags, clearCurrentArticleTags]);
 
   // 如果不在生成中且没有摘要，不显示
   if (!summarizing && !summary) {
@@ -397,6 +446,10 @@ export function StreamingSummary() {
           streamingText="" 
           content={summary.oneLiner} 
         />
+        
+        {/* 标签区域 */}
+        <TagsBlock currentUrl={currentUrl} />
+        
         <CoreInsightsBlock 
           isLoading={false} 
           isStreaming={false} 
