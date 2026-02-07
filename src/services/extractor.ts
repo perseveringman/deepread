@@ -1,12 +1,18 @@
 import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
 import type { ExtractedContent, ContentType } from '@/types';
+import { isYouTubePage } from '@/services/youtubeExtractor';
 
 /**
  * 检测内容类型
  */
 function detectContentType(url: string, doc: Document): { type: ContentType; confidence: number } {
   const hostname = new URL(url).hostname.toLowerCase();
+  
+  // YouTube 视频
+  if (isYouTubePage(url)) {
+    return { type: 'youtube', confidence: 0.95 };
+  }
   
   // Twitter/X
   if (hostname.includes('twitter.com') || hostname.includes('x.com')) {

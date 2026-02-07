@@ -5,7 +5,25 @@ export type ContentType =
   | 'twitter'
   | 'news'
   | 'documentation'
-  | 'generic';
+  | 'generic'
+  | 'youtube';
+
+// YouTube Transcript Types
+export interface TranscriptSegment {
+  text: string;
+  startTime: number;  // 秒
+  duration: number;   // 秒
+}
+
+export interface YouTubeMetadata {
+  videoId: string;
+  title: string;
+  channelName: string;
+  publishDate?: string;
+  duration: number;  // 视频总时长（秒）
+  transcript: TranscriptSegment[];
+  language: string;  // 字幕语言
+}
 
 export interface ExtractedContent {
   type: ContentType;
@@ -20,6 +38,7 @@ export interface ExtractedContent {
     language: string;
     source: string;
   };
+  youtubeMetadata?: YouTubeMetadata;
 }
 
 // Summary Types
@@ -97,6 +116,7 @@ export interface AIProvider {
 
 // Settings Types
 export type UILanguage = 'zh' | 'en' | 'system';
+export type ThemeMode = 'light' | 'dark' | 'system';
 
 export interface Settings {
   provider: string;
@@ -105,6 +125,7 @@ export interface Settings {
   defaultReadingLevel: 'quick' | 'core' | 'detailed';
   language: 'zh' | 'en' | 'auto';
   uiLanguage: UILanguage;
+  theme: ThemeMode;
 }
 
 // Storage Types

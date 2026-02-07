@@ -3,6 +3,7 @@ import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
 import type { ExtractedContent, ContentType } from '@/types';
 import type { ExtractContentResponse } from '@/types/messages';
+import { isYouTubePage, extractYouTubeContent } from '@/services/youtubeExtractor';
 
 console.log('DeepRead content script loaded');
 
@@ -11,6 +12,11 @@ console.log('DeepRead content script loaded');
  */
 function detectContentType(url: string, doc: Document): { type: ContentType; confidence: number } {
   const hostname = new URL(url).hostname.toLowerCase();
+  
+  // YouTube 视频
+  if (isYouTubePage(url)) {
+    return { type: 'youtube', confidence: 0.95 };
+  }
   
   // Twitter/X
   if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
@@ -96,9 +102,18 @@ function countWords(text: string, language: string): number {
 /**
  * 提取页面内容
  */
-function extractContent(): ExtractedContent {
+async function extractContent(): Promise<ExtractedContent> {
   const url = window.location.href;
   const doc = document;
+  
+  // YouTube 视频特殊处理
+  if (isYouTubePage(url)) {
+    // 从 settings 获取用户偏好语言，默认中文
+    const result = await chrome.storage.local.get('settings');
+    const settings = result.settings as { language?: string } | undefined;
+    const preferredLang = settings?.language || 'zh';
+    return extractYouTubeContent(url, preferredLang);
+  }
   
   // 使用 DOMParser 创建新文档以避免 Custom Elements 问题
   // 直接 cloneNode 会导致 __CE_registry 为 null 的错误
@@ -168,21 +183,39 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   
   if (message.type === 'EXTRACT_CONTENT') {
-    try {
-      const content = extractContent();
-      const response: ExtractContentResponse = {
-        type: 'CONTENT_EXTRACTED',
-        data: content,
-      };
-      sendResponse(response);
-    } catch (error) {
-      const response: ExtractContentResponse = {
-        type: 'EXTRACTION_ERROR',
-        error: error instanceof Error ? error.message : '未知错误',
-      };
-      sendResponse(response);
-    }
+    // 使用异步处理
+    extractContent()
+      .then(content => {
+        const response: ExtractContentResponse = {
+          type: 'CONTENT_EXTRACTED',
+          data: content,
+        };
+        sendResponse(response);
+      })
+      .catch(error => {
+        const response: ExtractContentResponse = {
+          type: 'EXTRACTION_ERROR',
+          error: error instanceof Error ? error.message : '未知错误',
+        };
+        sendResponse(response);
+      });
+    // 返回 true 表示将异步发送响应
+    return true;
   }
+  
+  // YouTube 视频跳转
+  if (message.type === 'YOUTUBE_SEEK') {
+    const video = document.querySelector('video') as HTMLVideoElement | null;
+    if (video && typeof message.payload?.seconds === 'number') {
+      video.currentTime = message.payload.seconds;
+      video.play().catch(() => {
+        // 忽略自动播放失败
+      });
+    }
+    sendResponse({ success: !!video });
+    return false;
+  }
+  
   return false;
 });
 
