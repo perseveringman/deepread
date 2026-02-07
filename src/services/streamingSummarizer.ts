@@ -53,6 +53,22 @@ export const initialStreamingState: StreamingSummaryState = {
  * 获取文章上下文（用于所有区块的 prompt）
  */
 function getArticleContext(content: ExtractedContent): string {
+  // YouTube 视频特殊处理
+  if (content.type === 'youtube' && content.youtubeMetadata) {
+    const meta = content.youtubeMetadata;
+    return `Video Information:
+Title: ${meta.title}
+Channel: ${meta.channelName}
+${meta.publishDate ? `Date: ${meta.publishDate}` : ''}
+Duration: ${Math.floor(meta.duration / 60)} minutes
+Source: YouTube
+Type: video transcript
+
+Video Transcript:
+${content.content}`;
+  }
+
+  // 普通文章处理
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = content.content;
   const textContent = tempDiv.textContent || '';

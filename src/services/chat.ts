@@ -9,15 +9,40 @@ import type { ExtractedContent, ChatMessage } from '@/types';
  * 构建对话系统提示词
  */
 function buildChatSystemPrompt(content: ExtractedContent, language: 'zh' | 'en' | 'auto'): string {
-  // 从 HTML 中提取纯文本
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = content.content;
-  const textContent = tempDiv.textContent || '';
-  
   const outputLang = language === 'auto' ? content.metadata.language : language;
   const langInstruction = outputLang === 'zh' 
     ? '请用中文回答问题。' 
     : 'Please answer in English.';
+
+  // YouTube 视频特殊处理
+  if (content.type === 'youtube' && content.youtubeMetadata) {
+    const meta = content.youtubeMetadata;
+    return `You are a helpful video assistant. You help users understand and discuss the YouTube video they are watching.
+
+${langInstruction}
+
+Video Information:
+- Title: ${meta.title}
+- Channel: ${meta.channelName}
+- Duration: ${Math.floor(meta.duration / 60)} minutes
+- Subtitle Language: ${meta.language}
+
+Video Transcript:
+${content.content}
+
+Guidelines:
+- Answer questions based on the video transcript
+- If the question is not related to the video content, politely redirect to the video topic
+- Reference specific parts of the transcript when relevant
+- Be concise but thorough
+- If you're not sure about something, say so
+- Remember this is a video transcript, so some context may be missing (visual elements, demonstrations, etc.)`;
+  }
+
+  // 普通文章处理
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = content.content;
+  const textContent = tempDiv.textContent || '';
 
   return `You are a helpful reading assistant. You help users understand and discuss the article they are reading.
 

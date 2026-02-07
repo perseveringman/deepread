@@ -3,7 +3,8 @@
  * 生成带有 YAML frontmatter 的 Markdown 文件
  */
 
-import type { ExtractedContent, SmartSummary, ChatMessage } from '../types';
+import type { ExtractedContent, SmartSummary, ChatMessage, TranscriptSegment } from '../types';
+import { formatTimestamp } from './youtubeExtractor';
 
 export interface ExportOptions {
   includeSummary: boolean;
@@ -31,8 +32,17 @@ function generateFrontmatter(
   lines.push(`source: "${content.metadata.source}"`);
   lines.push(`type: ${content.type}`);
   
-  if (content.author) {
-    lines.push(`author: "${escapeYamlString(content.author)}"`);
+  // YouTube 视频特殊字段
+  if (content.type === 'youtube' && content.youtubeMetadata) {
+    const meta = content.youtubeMetadata;
+    lines.push(`channel: "${escapeYamlString(meta.channelName)}"`);
+    lines.push(`videoId: ${meta.videoId}`);
+    lines.push(`duration: ${meta.duration}`);
+    lines.push(`subtitleLanguage: ${meta.language}`);
+  } else {
+    if (content.author) {
+      lines.push(`author: "${escapeYamlString(content.author)}"`);
+    }
   }
   
   if (content.publishDate) {
@@ -207,6 +217,26 @@ function generateOriginalContent(content: ExtractedContent): string {
 }
 
 /**
+ * 生成 YouTube 视频字幕部分
+ */
+function generateYouTubeTranscript(segments: TranscriptSegment[], videoId: string): string {
+  const lines: string[] = [
+    '## 视频字幕\n',
+    '> [!info] 以下为视频字幕内容，点击时间戳可跳转',
+    ''
+  ];
+
+  for (const segment of segments) {
+    const timestamp = formatTimestamp(segment.startTime);
+    const url = `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(segment.startTime)}`;
+    lines.push(`[${timestamp}](${url}) ${segment.text}`);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+/**
  * 生成安全的文件名
  */
 function generateFilename(title: string): string {
@@ -234,6 +264,7 @@ export function exportToObsidian(
   }
 ): ExportResult {
   const parts: string[] = [];
+  const isYouTube = content.type === 'youtube' && content.youtubeMetadata;
   
   // 1. YAML frontmatter
   if (options.includeMetadata) {
@@ -247,10 +278,17 @@ export function exportToObsidian(
   
   // 3. 来源信息
   const sourceInfo: string[] = [];
-  if (content.author) sourceInfo.push(`作者: ${content.author}`);
-  if (content.publishDate) sourceInfo.push(`日期: ${content.publishDate}`);
-  sourceInfo.push(`来源: [原文链接](${content.metadata.source})`);
-  sourceInfo.push(`阅读时间: 约 ${content.metadata.estimatedReadTime} 分钟`);
+  if (isYouTube) {
+    const meta = content.youtubeMetadata!;
+    sourceInfo.push(`频道: ${meta.channelName}`);
+    sourceInfo.push(`时长: ${formatTimestamp(meta.duration)}`);
+    sourceInfo.push(`来源: [YouTube](https://www.youtube.com/watch?v=${meta.videoId})`);
+  } else {
+    if (content.author) sourceInfo.push(`作者: ${content.author}`);
+    if (content.publishDate) sourceInfo.push(`日期: ${content.publishDate}`);
+    sourceInfo.push(`来源: [原文链接](${content.metadata.source})`);
+    sourceInfo.push(`阅读时间: 约 ${content.metadata.estimatedReadTime} 分钟`);
+  }
   parts.push(sourceInfo.join(' | '));
   parts.push('');
   
@@ -268,9 +306,16 @@ export function exportToObsidian(
     parts.push(generateChatHistory(chatMessages));
   }
   
-  // 6. 原文内容
+  // 6. 原文内容 / YouTube 字幕
   if (options.includeOriginalContent) {
-    parts.push(generateOriginalContent(content));
+    if (isYouTube && content.youtubeMetadata) {
+      parts.push(generateYouTubeTranscript(
+        content.youtubeMetadata.transcript,
+        content.youtubeMetadata.videoId
+      ));
+    } else {
+      parts.push(generateOriginalContent(content));
+    }
   }
   
   return {

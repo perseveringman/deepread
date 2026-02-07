@@ -28,7 +28,7 @@ function buildTagPrompt(
 
   const system = `You are an expert knowledge organizer. ${langInstruction}
 
-Your task is to generate hierarchical tags for an article to build a knowledge graph.
+Your task is to generate hierarchical tags for ${content.type === 'youtube' ? 'a video' : 'an article'} to build a knowledge graph.
 
 Guidelines:
 1. Generate 3-6 tags with hierarchical paths (use "/" as separator)
@@ -51,11 +51,38 @@ Output format (JSON array):
 
 Output ONLY valid JSON array, no markdown or explanation.`;
 
-  // 提取纯文本
+  // YouTube 视频特殊处理
+  if (content.type === 'youtube' && content.youtubeMetadata) {
+    const meta = content.youtubeMetadata;
+    const truncatedContent = content.content.slice(0, 3000);
+
+    let userMessage = `Video to tag:
+
+Title: ${meta.title}
+Channel: ${meta.channelName}
+Type: YouTube video
+Duration: ${Math.floor(meta.duration / 60)} minutes
+
+Transcript excerpt:
+${truncatedContent}`;
+
+    if (summary) {
+      userMessage += `
+
+Summary:
+- One-liner: ${summary.oneLiner}
+- Main point: ${summary.coreInsights.mainPoint}
+- Why it matters: ${summary.coreInsights.whyItMatters}`;
+    }
+
+    return { system, user: userMessage };
+  }
+
+  // 普通文章处理
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = content.content;
   const textContent = tempDiv.textContent || '';
-  const truncatedContent = textContent.slice(0, 3000); // 限制长度
+  const truncatedContent = textContent.slice(0, 3000);
 
   let userMessage = `Article to tag:
 
@@ -66,7 +93,6 @@ Source: ${content.metadata.source}
 Content excerpt:
 ${truncatedContent}`;
 
-  // 如果有摘要，加入摘要信息
   if (summary) {
     userMessage += `
 
