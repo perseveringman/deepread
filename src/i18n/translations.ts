@@ -117,6 +117,7 @@ export const translations = {
         twitter: '推文',
         documentation: '文档',
         generic: '文章',
+        youtube: '视频',
       },
     },
     
@@ -143,6 +144,12 @@ export const translations = {
       saveFailed: '保存失败',
       saving: '保存中...',
       saveSettings: '保存设置',
+      theme: '主题',
+      themeOptions: {
+        light: '浅色',
+        dark: '深色',
+        system: '跟随系统',
+      },
     },
     
     // 导出
@@ -222,6 +229,19 @@ export const translations = {
       patterns: '阅读模式',
       suggestions: '改进建议',
       recommendedTopics: '推荐探索',
+    },
+    
+    // YouTube 视频
+    youtube: {
+      video: 'YouTube 视频',
+      subtitles: '字幕',
+      transcript: '视频字幕',
+      segments: '段',
+      readingMode: '阅读',
+      timestampMode: '时间戳',
+      noTranscript: '该视频没有可用字幕',
+      fetchingSubtitles: '正在获取字幕...',
+      clickToSeek: '点击跳转到此位置',
     },
   },
   
@@ -339,6 +359,7 @@ export const translations = {
         twitter: 'Tweet',
         documentation: 'Docs',
         generic: 'Article',
+        youtube: 'Video',
       },
     },
     
@@ -365,6 +386,12 @@ export const translations = {
       saveFailed: 'Save failed',
       saving: 'Saving...',
       saveSettings: 'Save Settings',
+      theme: 'Theme',
+      themeOptions: {
+        light: 'Light',
+        dark: 'Dark',
+        system: 'System',
+      },
     },
     
     // Export
@@ -444,6 +471,19 @@ export const translations = {
       patterns: 'Reading Patterns',
       suggestions: 'Suggestions',
       recommendedTopics: 'Recommended Topics',
+    },
+    
+    // YouTube Video
+    youtube: {
+      video: 'YouTube Video',
+      subtitles: 'Subtitles',
+      transcript: 'Video Transcript',
+      segments: 'segments',
+      readingMode: 'Reading',
+      timestampMode: 'Timestamp',
+      noTranscript: 'No subtitles available for this video',
+      fetchingSubtitles: 'Fetching subtitles...',
+      clickToSeek: 'Click to seek to this position',
     },
   },
 } as const;

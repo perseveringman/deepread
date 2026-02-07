@@ -4,6 +4,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { useLiteratureReviewStore } from '@/store/literatureReviewStore';
 import { useI18n } from '@/i18n';
+import { useTheme } from '@/hooks/useTheme';
 import { Settings } from '@/components/Settings';
 import { Chat, type ChatHandle } from '@/components/Chat';
 import { Export } from '@/components/Export';
@@ -11,12 +12,14 @@ import { History } from '@/components/History';
 import { StreamingSummary } from '@/components/StreamingSummary';
 import { LiteratureReview } from '@/components/LiteratureReview';
 import { Statistics } from '@/components/Statistics';
+import { TranscriptView, YouTubeInfoCard } from '@/components/TranscriptView';
 import type { ArticleRecord } from '@/db';
 
 type TabType = 'summary' | 'chat' | 'history' | 'review' | 'stats';
 
 function App() {
   const { t } = useI18n();
+  useTheme(); // 初始化主题
   const [showSettings, setShowSettings] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('summary');
@@ -117,26 +120,26 @@ function App() {
   // 设置页面
   if (showSettings) {
     return (
-      <div className="w-full h-full min-h-screen bg-gray-50">
+      <div className="w-full h-full min-h-screen bg-gray-50 dark:bg-chrome-bg">
         <Settings onClose={() => setShowSettings(false)} />
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full min-h-screen bg-gray-50 flex flex-col">
+    <div className="w-full h-full min-h-screen bg-gray-50 dark:bg-chrome-bg flex flex-col">
       {/* Header */}
       <header className="p-4 pb-2 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{t.app.title}</h1>
-          <p className="text-sm text-gray-500">{t.app.subtitle}</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-chrome-text">{t.app.title}</h1>
+          <p className="text-sm text-gray-500 dark:text-chrome-text-secondary">{t.app.subtitle}</p>
         </div>
         <div className="flex items-center gap-1">
           {/* 导出按钮 */}
           {content && (
             <button
               onClick={() => setShowExport(true)}
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-chrome-text rounded-lg hover:bg-gray-100 dark:hover:bg-chrome-surface-hover"
               title={t.export.title}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,7 +150,7 @@ function App() {
           {/* 设置按钮 */}
           <button
             onClick={() => setShowSettings(true)}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-chrome-text rounded-lg hover:bg-gray-100 dark:hover:bg-chrome-surface-hover"
             title={t.settings.title}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -162,8 +165,8 @@ function App() {
       <main className="flex-1 flex flex-col px-4 pb-4 overflow-hidden">
         {/* API Key 提示 */}
         {!apiKey && isLoaded && (
-          <div className="card p-4 border-yellow-200 bg-yellow-50 mb-4">
-            <p className="text-sm text-yellow-700">
+          <div className="card p-4 border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800 mb-4">
+            <p className="text-sm text-yellow-700 dark:text-yellow-400">
               {t.app.apiKeyRequired.split(t.app.configureApiKey)[0]}
               <button onClick={() => setShowSettings(true)} className="underline font-medium">{t.app.configureApiKey}</button>
               {t.app.apiKeyRequired.split(t.app.configureApiKey)[1] || ''}
@@ -201,21 +204,21 @@ function App() {
 
         {/* 错误信息 */}
         {(extractError || summaryError) && (
-          <div className="card p-4 border-red-200 bg-red-50 mb-4">
-            <p className="text-red-600 text-sm">
+          <div className="card p-4 border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 mb-4">
+            <p className="text-red-600 dark:text-red-400 text-sm">
               <strong>{t.common.error}:</strong> {extractError || summaryError}
             </p>
           </div>
         )}
 
         {/* 标签页切换 */}
-        <div className="flex border-b border-gray-200 mb-4">
+        <div className="flex border-b border-gray-200 dark:border-chrome-border mb-4">
           <button
             onClick={() => setActiveTab('summary')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'summary'
                 ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-chrome-text-secondary dark:hover:text-chrome-text'
             }`}
           >
             {t.tabs.summary}
@@ -225,7 +228,7 @@ function App() {
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors relative ${
               activeTab === 'chat'
                 ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-chrome-text-secondary dark:hover:text-chrome-text'
             }`}
           >
             {t.tabs.chat}
@@ -240,12 +243,12 @@ function App() {
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors relative ${
               activeTab === 'history'
                 ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-chrome-text-secondary dark:hover:text-chrome-text'
             }`}
           >
             {t.tabs.history}
             {totalCount > 0 && (
-              <span className="ml-1 text-xs text-gray-400">
+              <span className="ml-1 text-xs text-gray-400 dark:text-chrome-text-tertiary">
                 ({totalCount})
               </span>
             )}
@@ -255,12 +258,12 @@ function App() {
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors relative ${
               activeTab === 'review'
                 ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-chrome-text-secondary dark:hover:text-chrome-text'
             }`}
           >
             {t.tabs.review || '综述'}
             {reviews.length > 0 && (
-              <span className="ml-1 text-xs text-gray-400">
+              <span className="ml-1 text-xs text-gray-400 dark:text-chrome-text-tertiary">
                 ({reviews.length})
               </span>
             )}
@@ -270,7 +273,7 @@ function App() {
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'stats'
                 ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-chrome-text-secondary dark:hover:text-chrome-text'
             }`}
           >
             {t.tabs.stats || '统计'}
@@ -288,81 +291,105 @@ function App() {
               {/* 提取的内容（调试模式） - 只在没有摘要且不在生成时显示 */}
               {content && !summary && !summarizing && (
                 <div className="space-y-4">
-                  {/* 内容类型 */}
-                  <div className="card p-4">
-                    <h2 className="text-sm font-semibold text-gray-700 mb-2">{t.content.contentType}</h2>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-gray-500">{t.content.type}:</span>{' '}
-                        <span className="font-mono bg-blue-100 px-1 rounded">{content.type}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">{t.content.confidence}:</span>{' '}
-                        <span className="font-mono">{(content.confidence * 100).toFixed(0)}%</span>
-                      </div>
-                    </div>
-                  </div>
+                  {/* YouTube 视频特殊展示 */}
+                  {content.type === 'youtube' && content.youtubeMetadata && (
+                    <>
+                      <YouTubeInfoCard
+                        title={content.youtubeMetadata.title}
+                        channelName={content.youtubeMetadata.channelName}
+                        duration={content.youtubeMetadata.duration}
+                        language={content.youtubeMetadata.language}
+                      />
+                      <TranscriptView
+                        segments={content.youtubeMetadata.transcript}
+                        videoId={content.youtubeMetadata.videoId}
+                      />
+                    </>
+                  )}
 
-                  {/* 基本信息 */}
-                  <div className="card p-4">
-                    <h2 className="text-sm font-semibold text-gray-700 mb-2">{t.content.basicInfo}</h2>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="text-gray-500">{t.content.title}:</span>{' '}
-                        <span className="font-medium">{content.title}</span>
-                      </div>
-                      {content.author && (
+                  {/* 非 YouTube 内容：内容类型 */}
+                  {content.type !== 'youtube' && (
+                    <div className="card p-4">
+                      <h2 className="text-sm font-semibold text-gray-700 dark:text-chrome-text-secondary mb-2">{t.content.contentType}</h2>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
-                          <span className="text-gray-500">{t.content.author}:</span>{' '}
-                          <span>{content.author}</span>
+                          <span className="text-gray-500 dark:text-chrome-text-secondary">{t.content.type}:</span>{' '}
+                          <span className="font-mono bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 px-1 rounded">{content.type}</span>
                         </div>
-                      )}
-                      {content.publishDate && (
                         <div>
-                          <span className="text-gray-500">{t.content.publishDate}:</span>{' '}
-                          <span>{content.publishDate}</span>
+                          <span className="text-gray-500 dark:text-chrome-text-secondary">{t.content.confidence}:</span>{' '}
+                          <span className="font-mono">{(content.confidence * 100).toFixed(0)}%</span>
                         </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 元数据 */}
-                  <div className="card p-4">
-                    <h2 className="text-sm font-semibold text-gray-700 mb-2">{t.content.metadata}</h2>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-gray-500">{t.content.wordCount}:</span>{' '}
-                        <span className="font-mono">{content.metadata.wordCount}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">{t.content.readTime}:</span>{' '}
-                        <span className="font-mono">{content.metadata.estimatedReadTime} {t.content.minutes}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">{t.content.language}:</span>{' '}
-                        <span className="font-mono">{content.metadata.language}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">{t.content.source}:</span>{' '}
-                        <span className="font-mono text-xs">{content.metadata.source}</span>
                       </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* 内容预览 */}
-                  <div className="card p-4">
-                    <h2 className="text-sm font-semibold text-gray-700 mb-2">{t.content.contentPreview} ({t.content.first500})</h2>
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
-                      {getContentPreview()}
-                    </p>
-                  </div>
+                  {/* 非 YouTube 内容：基本信息 */}
+                  {content.type !== 'youtube' && (
+                    <div className="card p-4">
+                      <h2 className="text-sm font-semibold text-gray-700 dark:text-chrome-text-secondary mb-2">{t.content.basicInfo}</h2>
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="text-gray-500 dark:text-chrome-text-secondary">{t.content.title}:</span>{' '}
+                          <span className="font-medium">{content.title}</span>
+                        </div>
+                        {content.author && (
+                          <div>
+                            <span className="text-gray-500 dark:text-chrome-text-secondary">{t.content.author}:</span>{' '}
+                            <span>{content.author}</span>
+                          </div>
+                        )}
+                        {content.publishDate && (
+                          <div>
+                            <span className="text-gray-500 dark:text-chrome-text-secondary">{t.content.publishDate}:</span>{' '}
+                            <span>{content.publishDate}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 非 YouTube 内容：元数据 */}
+                  {content.type !== 'youtube' && (
+                    <div className="card p-4">
+                      <h2 className="text-sm font-semibold text-gray-700 dark:text-chrome-text-secondary mb-2">{t.content.metadata}</h2>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-gray-500 dark:text-chrome-text-secondary">{t.content.wordCount}:</span>{' '}
+                          <span className="font-mono">{content.metadata.wordCount}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 dark:text-chrome-text-secondary">{t.content.readTime}:</span>{' '}
+                          <span className="font-mono">{content.metadata.estimatedReadTime} {t.content.minutes}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 dark:text-chrome-text-secondary">{t.content.language}:</span>{' '}
+                          <span className="font-mono">{content.metadata.language}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 dark:text-chrome-text-secondary">{t.content.source}:</span>{' '}
+                          <span className="font-mono text-xs">{content.metadata.source}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 非 YouTube 内容：内容预览 */}
+                  {content.type !== 'youtube' && (
+                    <div className="card p-4">
+                      <h2 className="text-sm font-semibold text-gray-700 dark:text-chrome-text-secondary mb-2">{t.content.contentPreview} ({t.content.first500})</h2>
+                      <p className="text-sm text-gray-600 dark:text-chrome-text-secondary whitespace-pre-wrap leading-relaxed">
+                        {getContentPreview()}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* 空状态 */}
               {!content && !extracting && !extractError && (
                 <div className="card p-4">
-                  <p className="text-gray-600 text-sm">
+                  <p className="text-gray-600 dark:text-chrome-text-secondary text-sm">
                     {t.app.emptyState}
                   </p>
                 </div>
@@ -376,7 +403,7 @@ function App() {
               <Chat ref={chatRef} />
             ) : (
               <div className="card p-4">
-                <p className="text-gray-600 text-sm">
+                <p className="text-gray-600 dark:text-chrome-text-secondary text-sm">
                   {t.chat.extractFirst}
                 </p>
               </div>
